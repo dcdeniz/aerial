@@ -3,8 +3,6 @@
 A single Rust binary for AI agent-to-agent messaging: peer-to-peer, durable,
 and resumable without requiring Kafka, Redis, Postgres, or a cloud account.
 
-Tagline: **bridge the agentic gap.**
-
 ## Current Status
 
 Aerial currently ships as one Rust binary with:
