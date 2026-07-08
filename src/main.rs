@@ -1,0 +1,194 @@
+use std::path::PathBuf;
+
+use aerial::daemon;
+use aerial::{Daemon, DaemonRequest, DaemonResponse, Mailbox};
+use anyhow::Context;
+use clap::{Parser, Subcommand};
+use uuid::Uuid;
+
+#[derive(Debug, Parser)]
+#[command(name = "aerial")]
+#[command(about = "Durable, resumable messaging for local AI agents.")]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    /// Run the local Aerial daemon.
+    Serve {
+        /// Directory for the daemon socket and durable mailboxes.
+        #[arg(long, default_value = ".aerial")]
+        data_dir: PathBuf,
+    },
+    /// Register an agent name with a running daemon.
+    Register {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Human-readable agent name.
+        name: String,
+    },
+    /// Send a message through a running daemon.
+    Tell {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Sender agent name.
+        #[arg(long)]
+        from: String,
+        /// Recipient agent name.
+        #[arg(long)]
+        to: String,
+        /// Message body to store in the envelope payload.
+        #[arg(long)]
+        body: String,
+        /// Optional parent envelope id for lineage tracking.
+        #[arg(long)]
+        in_reply_to: Option<Uuid>,
+    },
+    /// List pending messages for an agent through a running daemon.
+    Inbox {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name.
+        agent: String,
+    },
+    /// Acknowledge a message for an agent through a running daemon.
+    Done {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name.
+        #[arg(long)]
+        agent: String,
+        /// Envelope UUID to acknowledge.
+        id: Uuid,
+    },
+    /// Show sent-message history across agents.
+    History {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Number of most recent messages to show.
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Print the raw JSON response instead of the compact view.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Append a message to a local mailbox.
+    Send {
+        /// Path to the recipient mailbox JSONL file.
+        #[arg(long)]
+        mailbox: PathBuf,
+        /// Message body to store in the envelope payload.
+        #[arg(long)]
+        body: String,
+    },
+    /// List unacknowledged messages in a local mailbox.
+    Pending {
+        /// Path to the mailbox JSONL file.
+        #[arg(long)]
+        mailbox: PathBuf,
+    },
+    /// Acknowledge a message by envelope id.
+    Ack {
+        /// Path to the mailbox JSONL file.
+        #[arg(long)]
+        mailbox: PathBuf,
+        /// Envelope UUID to acknowledge.
+        id: Uuid,
+    },
+}
+
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Command::Serve { data_dir } => {
+            let socket_path = data_dir.join("aerial.sock");
+            Daemon::new(data_dir).context("create daemon")?.serve()?;
+            println!("aerial daemon stopped: {}", socket_path.display());
+        }
+        Command::Register { socket, name } => {
+            print_response(daemon::request(&socket, &DaemonRequest::Register { name })?)?;
+        }
+        Command::Tell {
+            socket,
+            from,
+            to,
+            body,
+            in_reply_to,
+        } => {
+            print_response(daemon::request(
+                &socket,
+                &DaemonRequest::Send {
+                    from,
+                    to,
+                    body,
+                    in_reply_to,
+                },
+            )?)?;
+        }
+        Command::Inbox { socket, agent } => {
+            print_response(daemon::request(&socket, &DaemonRequest::Pending { agent })?)?;
+        }
+        Command::Done { socket, agent, id } => {
+            print_response(daemon::request(&socket, &DaemonRequest::Ack { agent, id })?)?;
+        }
+        Command::History {
+            socket,
+            limit,
+            json,
+        } => {
+            let response = daemon::request(&socket, &DaemonRequest::History { limit })?;
+            if json {
+                print_response(response)?;
+            } else {
+                print_history(response)?;
+            }
+        }
+        Command::Send { mailbox, body } => {
+            let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
+            let envelope = aerial::Envelope::new(
+                aerial::AgentId::new(),
+                aerial::AgentId::new(),
+                aerial::MessageKind::Message,
+                serde_json::json!({ "body": body }),
+            );
+            mailbox.enqueue(&envelope).context("enqueue envelope")?;
+            println!("{}", serde_json::to_string_pretty(&envelope)?);
+        }
+        Command::Pending { mailbox } => {
+            let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
+            let pending = mailbox.pending().context("read pending envelopes")?;
+            println!("{}", serde_json::to_string_pretty(&pending)?);
+        }
+        Command::Ack { mailbox, id } => {
+            let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
+            mailbox.ack(id).context("ack envelope")?;
+        }
+    }
+
+    Ok(())
+}
+
+fn print_response(response: DaemonResponse) -> anyhow::Result<()> {
+    println!("{}", serde_json::to_string_pretty(&response)?);
+    Ok(())
+}
+
+fn print_history(response: DaemonResponse) -> anyhow::Result<()> {
+    match response {
+        DaemonResponse::History { messages } => {
+            for message in messages {
+                println!("{}", message.render_summary());
+            }
+            Ok(())
+        }
+        other => print_response(other),
+    }
+}
