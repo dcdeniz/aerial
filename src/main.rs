@@ -17,12 +17,14 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Run the local Aerial daemon.
+    #[command(visible_alias = "up")]
     Serve {
         /// Directory for the daemon socket and durable mailboxes.
         #[arg(long, default_value = ".aerial")]
         data_dir: PathBuf,
     },
     /// Register an agent name with a running daemon.
+    #[command(visible_alias = "join")]
     Register {
         /// Path to the daemon socket.
         #[arg(long, default_value = ".aerial/aerial.sock")]
@@ -31,6 +33,7 @@ enum Command {
         name: String,
     },
     /// Send a message through a running daemon.
+    #[command(visible_alias = "send")]
     Tell {
         /// Path to the daemon socket.
         #[arg(long, default_value = ".aerial/aerial.sock")]
@@ -49,6 +52,7 @@ enum Command {
         in_reply_to: Option<Uuid>,
     },
     /// List pending messages for an agent through a running daemon.
+    #[command(visible_alias = "read")]
     Inbox {
         /// Path to the daemon socket.
         #[arg(long, default_value = ".aerial/aerial.sock")]
@@ -57,6 +61,7 @@ enum Command {
         agent: String,
     },
     /// Acknowledge a message for an agent through a running daemon.
+    #[command(visible_alias = "ack")]
     Done {
         /// Path to the daemon socket.
         #[arg(long, default_value = ".aerial/aerial.sock")]
@@ -68,6 +73,7 @@ enum Command {
         id: Uuid,
     },
     /// Show sent-message history across agents.
+    #[command(visible_alias = "log")]
     History {
         /// Path to the daemon socket.
         #[arg(long, default_value = ".aerial/aerial.sock")]
@@ -80,6 +86,7 @@ enum Command {
         json: bool,
     },
     /// Append a message to a local mailbox.
+    #[command(name = "mailbox-send", hide = true)]
     Send {
         /// Path to the recipient mailbox JSONL file.
         #[arg(long)]
@@ -89,12 +96,14 @@ enum Command {
         body: String,
     },
     /// List unacknowledged messages in a local mailbox.
+    #[command(name = "mailbox-pending", hide = true)]
     Pending {
         /// Path to the mailbox JSONL file.
         #[arg(long)]
         mailbox: PathBuf,
     },
     /// Acknowledge a message by envelope id.
+    #[command(name = "mailbox-ack", hide = true)]
     Ack {
         /// Path to the mailbox JSONL file.
         #[arg(long)]
