@@ -62,3 +62,27 @@ Agent 28y49uhrfquf -> Agent 14u1rj13ru1 "Message First 50 Characters ...."
 ```
 
 Use `--json` on `history` when an agent or tool needs structured output.
+
+## Development Smoke Test
+
+Run a local two-agent exchange end to end:
+
+```sh
+scripts/two-agent-smoke.sh
+```
+
+The script starts a temporary daemon, registers `engineer` and `researcher`,
+sends one message, acks it, prints compact history, and removes the temporary
+data directory.
+
+## Install
+
+For local development:
+
+```sh
+cargo install --path .
+```
+
+Homebrew is the first planned binary/package install path for macOS. See
+[`docs/INSTALL.md`](docs/INSTALL.md) for the current packaging plan and the
+draft formula template.

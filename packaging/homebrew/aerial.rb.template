@@ -1,0 +1,26 @@
+# Homebrew formula template for the first Aerial release.
+#
+# Before publishing:
+# - Replace VERSION with the git tag version, for example 0.1.0.
+# - Replace SOURCE_TARBALL_URL with the release source archive URL.
+# - Replace SOURCE_TARBALL_SHA256 with the archive sha256.
+# - Copy this file to the tap as Formula/aerial.rb.
+
+class Aerial < Formula
+  desc "Peer-to-peer, durable, resumable messaging for AI agents"
+  homepage "https://github.com/aerial-project/aerial"
+  url "SOURCE_TARBALL_URL"
+  sha256 "SOURCE_TARBALL_SHA256"
+  license "MIT OR Apache-2.0"
+  version "VERSION"
+
+  depends_on "rust" => :build
+
+  def install
+    system "cargo", "install", *std_cargo_args
+  end
+
+  test do
+    assert_match "aerial", shell_output("#{bin}/aerial --help")
+  end
+end
