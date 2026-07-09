@@ -7,18 +7,76 @@ Tagline: **"bridge the agentic gap."**
 This file exists so a fresh agent picking up this repo has the context that
 isn't obvious from the files alone.
 
-## Status (as of this writing)
+## Status
 
-- Repo initialized (`git init`), **nothing committed yet**.
-- `ARCHITECTURE.md` — the actual design doc. Read this first.
-- `site/index.html` — a landing page. See "The website is a bit" below
-  before touching it.
-- **No Rust code exists yet.** No `Cargo.toml`, no crate structure, nothing
-  scaffolded. The architecture doc is a design, not an implementation.
-- A local dev server (`python3 -m http.server 8080` from `site/`) may or may
-  not still be running in the background from an earlier session — it's not
-  part of the project, just a way to preview the page. Don't treat it as
-  infrastructure.
+Aerial is implemented as a single `aerial` Rust binary, in active development
+toward v0.2. What exists today:
+
+- a local daemon over a Unix-domain socket (AF_UNIX — via the `uds_windows`
+  crate on Windows, so it builds and runs on Linux, macOS, and Windows)
+- durable per-agent JSONL mailboxes and an append-only transcript
+- name-addressed, at-least-once delivery that survives an offline recipient
+- wake notifications so an agent can be woken instead of polling
+  (`aerial watch`, with an optional `--exec` hook)
+- an MCP adapter (`aerial mcp`) over the same daemon protocol
+- a CLI covering register / send / read / ack / history
+
+Read `ARCHITECTURE.md` first for the envelope format, addressing, delivery
+model, and open questions. `CHANGELOG.md` tracks released behavior. The
+`site/index.html` landing page is deliberate retro brand identity — see
+"The website is a bit" below before touching it.
+
+## Working as an agent (messaging over Aerial)
+
+If you are an AI agent collaborating through Aerial, treat your mailbox like an
+inbox you must keep watching.
+
+**Rule: keep an inbox open — do not go dark between actions.** Hold a shell
+open on your own name so you notice messages as they arrive, and acknowledge
+what you handle:
+
+```sh
+# preferred: get woken on arrival, no polling
+aerial watch <your-name>
+
+# or run a command per message (the process reads and acks its own inbox)
+aerial watch <your-name> --exec "<command>"
+
+# fallback if you cannot hold a stream open: poll your inbox
+aerial read <your-name>
+```
+
+Always `aerial ack --agent <your-name> <envelope-id>` once you have handled a
+message so it does not resurface. The mailbox is the source of truth; a wake
+event is only a notification that mail is waiting, so a missed or duplicated
+wake never loses a message.
+
+### Command reference
+
+The daemon must be running (`aerial up`); every client command talks to it over
+the socket (default `.aerial/aerial.sock`, override with `--socket`). Short
+aliases are for day-to-day agent use; canonical names in parentheses.
+
+| Command | Purpose |
+| --- | --- |
+| `aerial up` (`serve`) | Run the local daemon. |
+| `aerial join <name>` (`register`) | Register an agent name. |
+| `aerial send --from <a> --to <b> --body <text>` (`tell`) | Send a message; `--in-reply-to <id>` keeps lineage. |
+| `aerial read <name>` (`inbox`) | List an agent's pending (unacked) messages. |
+| `aerial ack --agent <name> <id>` (`done`) | Acknowledge a handled message. |
+| `aerial log [--limit N] [--json]` (`history`) | Show message history. |
+| `aerial watch <name>` | Stream JSONL wake events as mail arrives. |
+| `aerial watch <name> --exec <cmd>` | Run a hook per arrival (`AERIAL_AGENT`, `AERIAL_MESSAGE_ID`, `AERIAL_SOCKET` set in its env). |
+| `aerial mcp` | Serve the MCP adapter over stdio (tools: register, tell, inbox, done, history). |
+
+### How it works (briefly)
+
+Each agent is addressed by name. A message is an envelope (`tool_use`-shaped:
+id, from, to, optional `in_reply_to`, payload) appended to the recipient's
+durable JSONL mailbox, so mail to an offline agent waits until it reads and
+acks. Delivery is at-least-once, so handlers should be idempotent. `watch`
+subscribes to the daemon and is notified when the recipient gets mail — a
+convenience over polling, never a replacement for the durable mailbox.
 
 ## The core idea
 
@@ -101,13 +159,12 @@ the binary itself is intentionally headless/UI-less) plus enterprise
 features (SSO, RBAC, audit logs) and support contracts. Not urgent, just
 recorded so it's not re-litigated from scratch.
 
-## Next steps (open as of this writing)
+## Next steps
 
-- No Rust code. First real implementation work would be scaffolding the
-  crate(s) per `ARCHITECTURE.md`'s core concepts (Agent, Envelope, Mailbox,
-  Transcript, Registry).
-- Nothing is committed to git yet — `ARCHITECTURE.md`, `site/index.html`,
-  and this file are all currently untracked/uncommitted.
+- v0.2 wraps up the wake (`watch` / `--exec`), MCP adapter, Windows support,
+  and docs/tests work; the remaining step is cutting the v0.2 Homebrew release
+  (version bump, `CHANGELOG.md`, and the tap formula under
+  `packaging/homebrew/`).
 - Open design questions are listed at the bottom of `ARCHITECTURE.md`
   (exactly-once vs. at-least-once delivery, whether the registry persists
   across daemon restarts, how much of the wire format to version from v0).
