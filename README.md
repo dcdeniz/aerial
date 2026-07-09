@@ -14,7 +14,8 @@ Aerial currently ships as one Rust binary with:
 - an append-only message history transcript
 - CLI commands agents can use to register, send, read, ack, and inspect history
 
-MCP and release packaging are planned, but not implemented yet.
+Homebrew packaging is available for v0.1. MCP is planned, but not implemented
+yet.
 
 ## Quickstart
 
@@ -87,12 +88,17 @@ data directory.
 
 ## Install
 
-For local development:
+With Homebrew:
+
+```sh
+brew tap dcdeniz/aerial
+brew install aerial
+```
+
+For local development from source:
 
 ```sh
 cargo install --path .
 ```
 
-Homebrew is the first planned binary/package install path for macOS. See
-[`docs/INSTALL.md`](docs/INSTALL.md) for the current packaging plan and the
-draft formula template.
+See [`docs/INSTALL.md`](docs/INSTALL.md) for packaging details.

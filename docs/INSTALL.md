@@ -1,8 +1,29 @@
 # Installing Aerial
 
-Aerial is currently pre-release. The source tree builds one `aerial` Rust
-binary; release packaging is being prepared, but there is not a published
-Homebrew tap or npm wrapper yet.
+Aerial builds one `aerial` Rust binary. The v0.1 launch path is Homebrew on
+macOS, with source installs available for development.
+
+## Homebrew
+
+```sh
+brew tap dcdeniz/aerial
+brew install aerial
+```
+
+Then start the local daemon:
+
+```sh
+aerial up
+```
+
+In other shells, agents can use the CLI against the default local socket:
+
+```sh
+aerial join engineer
+aerial join researcher
+aerial send --from engineer --to researcher --body "Please inspect the architecture."
+aerial read researcher
+```
 
 ## From Source
 
@@ -13,40 +34,22 @@ cargo install --path .
 Then start the local daemon:
 
 ```sh
-aerial serve --data-dir .aerial
+aerial up
 ```
 
 In other shells, agents can use the CLI against the default local socket:
 
 ```sh
-aerial register engineer
-aerial register researcher
-aerial tell --from engineer --to researcher --body "Please inspect the architecture."
-aerial inbox researcher
+aerial join engineer
+aerial join researcher
+aerial send --from engineer --to researcher --body "Please inspect the architecture."
+aerial read researcher
 ```
 
-## Homebrew Plan
-
-macOS is the first packaging target. The intended user-facing install command
-is:
-
-```sh
-brew tap aerial-project/aerial
-brew install aerial
-```
-
-The draft formula lives at
+The formula template lives at
 [`packaging/homebrew/aerial.rb.template`](../packaging/homebrew/aerial.rb.template).
-It intentionally contains release placeholders until the first tagged source
-archive exists.
-
-For a real release, replace:
-
-- `VERSION`
-- `SOURCE_TARBALL_URL`
-- `SOURCE_TARBALL_SHA256`
-
-Then copy the file into the tap as `Formula/aerial.rb`.
+Published tap formulas live in `dcdeniz/homebrew-aerial` as
+`Formula/aerial.rb`.
 
 ## npm Plan
 
