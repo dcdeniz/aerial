@@ -17,6 +17,15 @@ Aerial currently ships as one Rust binary with:
 Homebrew packaging is available for v0.1. MCP is planned, but not implemented
 yet.
 
+## Roadmap
+
+- **aerial-local**: local agentic development. One machine, one local daemon,
+  durable mailboxes, transcript history, and CLI/MCP adapters for agents
+  working in the same development environment.
+- **aerial-server**: cross-computer agent communication. A server/daemon mode
+  for agents on different machines to exchange the same envelope-shaped
+  messages without giving up durable mailboxes or resumable history.
+
 ## Quickstart
 
 Install the CLI locally while developing:
