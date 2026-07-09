@@ -26,23 +26,28 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2024-11-05";
 
 /// Run the stdio MCP server against the daemon at `socket` until stdin closes.
 ///
-/// Reads one JSON-RPC message per line, dispatches it, and writes at most one
-/// response line back. Notifications (messages without an `id`) produce no
-/// response. Diagnostics must never go to stdout — that channel is reserved for
-/// protocol frames — so errors surface as JSON-RPC error responses instead.
+/// Diagnostics must never go to stdout — that channel is reserved for protocol
+/// frames — so errors surface as JSON-RPC error responses instead.
 pub fn serve_stdio(socket: PathBuf) -> io::Result<()> {
     let stdin = io::stdin();
     let stdout = io::stdout();
-    let mut out = stdout.lock();
+    serve(stdin.lock(), stdout.lock(), &socket)
+}
 
-    for line in stdin.lock().lines() {
+/// Drive the MCP server loop over an arbitrary reader/writer against the daemon
+/// at `socket`. Reads one JSON-RPC message per line, dispatches it, and writes
+/// at most one response line back; notifications (messages without an `id`)
+/// produce no response. Factored out of [`serve_stdio`] so the framing can be
+/// exercised in tests with in-memory buffers.
+pub fn serve(reader: impl BufRead, mut writer: impl Write, socket: &Path) -> io::Result<()> {
+    for line in reader.lines() {
         let line = line?;
         if line.trim().is_empty() {
             continue;
         }
 
         let response = match serde_json::from_str::<Value>(&line) {
-            Ok(message) => dispatch(&socket, &message),
+            Ok(message) => dispatch(socket, &message),
             Err(error) => Some(error_response(
                 Value::Null,
                 -32700,
@@ -51,7 +56,7 @@ pub fn serve_stdio(socket: PathBuf) -> io::Result<()> {
         };
 
         if let Some(response) = response {
-            write_message(&mut out, &response)?;
+            write_message(&mut writer, &response)?;
         }
     }
 
@@ -372,5 +377,132 @@ mod tests {
     fn build_request_maps_history_limit() {
         let request = build_request(Some("history"), &json!({ "limit": 5 })).expect("history");
         assert_eq!(request, DaemonRequest::History { limit: Some(5) });
+    }
+
+    // ---- Loop framing over in-memory buffers (no daemon needed) -------------
+
+    #[test]
+    fn stdio_loop_frames_one_response_per_request_and_skips_notifications() {
+        use std::io::Cursor;
+
+        // `initialize` and `tools/list` each expect one response line; the
+        // `notifications/initialized` message and the blank line expect none.
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n",
+        );
+        let mut output = Vec::new();
+        serve(Cursor::new(input), &mut output, Path::new("unused.sock")).expect("serve");
+
+        let text = String::from_utf8(output).expect("utf8 output");
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "exactly two responses expected");
+
+        let initialize: Value = serde_json::from_str(lines[0]).expect("initialize json");
+        assert_eq!(initialize["id"], 1);
+        assert_eq!(initialize["result"]["protocolVersion"], "2025-06-18");
+
+        let tools: Value = serde_json::from_str(lines[1]).expect("tools/list json");
+        assert_eq!(tools["id"], 2);
+        assert_eq!(tools["result"]["tools"].as_array().expect("tools array").len(), 5);
+    }
+
+    #[test]
+    fn malformed_line_yields_parse_error_frame() {
+        use std::io::Cursor;
+
+        let mut output = Vec::new();
+        serve(Cursor::new("{ not json\n"), &mut output, Path::new("unused.sock")).expect("serve");
+        let response: Value = serde_json::from_slice(&output).expect("json");
+        assert_eq!(response["error"]["code"], -32700);
+    }
+
+    // ---- End-to-end against a live in-process daemon -----------------------
+
+    fn start_daemon() -> (tempfile::TempDir, std::path::PathBuf) {
+        use crate::daemon::Daemon;
+        use std::time::Duration;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let daemon = Daemon::new(dir.path()).expect("daemon");
+        let socket = daemon.socket_path();
+        std::thread::spawn(move || {
+            let _ = daemon.serve();
+        });
+
+        // Wait for the listener to start accepting before returning.
+        for _ in 0..200 {
+            if daemon::request(&socket, &DaemonRequest::History { limit: Some(1) }).is_ok() {
+                return (dir, socket);
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("daemon did not become ready");
+    }
+
+    fn call_tool(socket: &Path, id: i64, name: &str, arguments: Value) -> Value {
+        let message = json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        });
+        dispatch(socket, &message).expect("tool response")
+    }
+
+    /// Parse the daemon response JSON carried in a tool result's text content.
+    fn tool_body(response: &Value) -> Value {
+        assert_eq!(response["result"]["isError"], false, "tool reported error: {response}");
+        let text = response["result"]["content"][0]["text"]
+            .as_str()
+            .expect("text content");
+        serde_json::from_str(text).expect("daemon response json")
+    }
+
+    #[test]
+    fn all_tools_round_trip_through_the_live_daemon() {
+        let (_dir, socket) = start_daemon();
+
+        let registered = call_tool(&socket, 1, "register", json!({ "name": "alice" }));
+        assert_eq!(tool_body(&registered)["status"], "registered");
+
+        let sent = call_tool(
+            &socket,
+            2,
+            "tell",
+            json!({ "from": "alice", "to": "bob", "body": "hi bob" }),
+        );
+        assert_eq!(tool_body(&sent)["status"], "sent");
+
+        let inbox = call_tool(&socket, 3, "inbox", json!({ "agent": "bob" }));
+        let pending = tool_body(&inbox);
+        let envelopes = pending["envelopes"].as_array().expect("envelopes");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["payload"]["body"], "hi bob");
+        let envelope_id = envelopes[0]["id"].as_str().expect("envelope id").to_owned();
+
+        let acked = call_tool(&socket, 4, "done", json!({ "agent": "bob", "id": envelope_id }));
+        assert_eq!(tool_body(&acked)["status"], "acked");
+
+        let inbox_after = call_tool(&socket, 5, "inbox", json!({ "agent": "bob" }));
+        assert!(
+            tool_body(&inbox_after)["envelopes"]
+                .as_array()
+                .expect("envelopes")
+                .is_empty(),
+            "mailbox should be drained after done"
+        );
+
+        let history = call_tool(&socket, 6, "history", json!({ "limit": 10 }));
+        assert_eq!(tool_body(&history)["status"], "history");
+    }
+
+    #[test]
+    fn tool_call_reports_unknown_tool_as_error() {
+        let (_dir, socket) = start_daemon();
+        let response = call_tool(&socket, 1, "nope", json!({}));
+        assert_eq!(response["result"]["isError"], true);
     }
 }
