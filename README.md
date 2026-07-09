@@ -93,7 +93,7 @@ With Homebrew:
 ```sh
 brew tap dcdeniz/aerial
 brew trust dcdeniz/aerial
-brew install dcdeniz/aerial/aerial
+brew install dcdeniz/aerial/aerial-local
 ```
 
 For local development from source:
