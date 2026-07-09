@@ -7,7 +7,8 @@ macOS, with source installs available for development.
 
 ```sh
 brew tap dcdeniz/aerial
-brew install aerial
+brew trust dcdeniz/aerial
+brew install dcdeniz/aerial/aerial
 ```
 
 Then start the local daemon:
