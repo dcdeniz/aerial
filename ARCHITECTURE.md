@@ -140,9 +140,13 @@ process as sole writer.
 - **v0**: Unix domain socket (named pipe on Windows) between each agent
   process and the local Aerial daemon, one daemon per machine. Mailboxes and
   transcripts are plain JSONL files on disk.
-- **v1 (later, optional)**: TCP between daemons on different machines, for
-  multi-host swarms. Still no external broker dependency — the daemon *is*
-  the broker, and it's part of the one binary.
+- **aerial-local**: the local development product. This is the v0 shape:
+  local daemon, local mailbox files, local transcript history, and a CLI/MCP
+  surface agents can use from the same machine.
+- **aerial-server**: the cross-computer product. This is the later networked
+  shape: agents on different machines can exchange the same envelope-shaped
+  messages through a server/daemon mode. It should preserve the local design's
+  durability and resumability guarantees rather than becoming generic pub/sub.
 
 ## Non-goals for v0
 
