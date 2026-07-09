@@ -1,6 +1,7 @@
 pub mod daemon;
 pub mod envelope;
 pub mod mailbox;
+pub mod mcp;
 pub mod protocol;
 pub mod registry;
 pub mod transcript;
