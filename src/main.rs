@@ -85,6 +85,14 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Stream wake notifications for an agent as JSONL events.
+    Watch {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name to watch for incoming mail.
+        agent: String,
+    },
     /// Append a message to a local mailbox.
     #[command(name = "mailbox-send", hide = true)]
     Send {
@@ -159,6 +167,14 @@ fn main() -> anyhow::Result<()> {
             } else {
                 print_history(response)?;
             }
+        }
+        Command::Watch { socket, agent } => {
+            daemon::watch(&socket, &agent, |event| {
+                match serde_json::to_string(&event) {
+                    Ok(line) => println!("{line}"),
+                    Err(error) => eprintln!("aerial: failed to encode event: {error}"),
+                }
+            })?;
         }
         Command::Send { mailbox, body } => {
             let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
