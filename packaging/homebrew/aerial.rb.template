@@ -10,9 +10,9 @@ class Aerial < Formula
   desc "Peer-to-peer, durable, resumable messaging for AI agents"
   homepage "https://github.com/dcdeniz/aerial"
   url "SOURCE_TARBALL_URL"
-  sha256 "SOURCE_TARBALL_SHA256"
-  license "MIT OR Apache-2.0"
   version "VERSION"
+  sha256 "SOURCE_TARBALL_SHA256"
+  license any_of: ["MIT", "Apache-2.0"]
 
   depends_on "rust" => :build
 
