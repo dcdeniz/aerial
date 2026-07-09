@@ -8,7 +8,7 @@ macOS, with source installs available for development.
 ```sh
 brew tap dcdeniz/aerial
 brew trust dcdeniz/aerial
-brew install dcdeniz/aerial/aerial
+brew install dcdeniz/aerial/aerial-local
 ```
 
 Then start the local daemon:
@@ -48,9 +48,9 @@ aerial read researcher
 ```
 
 The formula template lives at
-[`packaging/homebrew/aerial.rb.template`](../packaging/homebrew/aerial.rb.template).
+[`packaging/homebrew/aerial-local.rb.template`](../packaging/homebrew/aerial-local.rb.template).
 Published tap formulas live in `dcdeniz/homebrew-aerial` as
-`Formula/aerial.rb`.
+`Formula/aerial-local.rb`.
 
 ## npm Plan
 
