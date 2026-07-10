@@ -85,6 +85,13 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Serve the MCP adapter over stdio, translating MCP tool calls into daemon requests.
+    #[command(name = "mcp", hide = true)]
+    Mcp {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+    },
     /// Stream wake notifications for an agent, or run a hook on each.
     Watch {
         /// Path to the daemon socket.
@@ -172,6 +179,9 @@ fn main() -> anyhow::Result<()> {
             } else {
                 print_history(response)?;
             }
+        }
+        Command::Mcp { socket } => {
+            aerial::mcp::serve_stdio(socket).context("serve mcp adapter")?;
         }
         Command::Watch {
             socket,

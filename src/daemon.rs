@@ -185,7 +185,9 @@ impl Daemon {
             DaemonRequest::Register { name } => {
                 let mut state = self.state.lock().expect("state lock");
                 let registered = state.registry.register(name.clone());
-                state.known_agents.insert(name.clone(), registered.id.clone());
+                state
+                    .known_agents
+                    .insert(name.clone(), registered.id.clone());
                 Ok(DaemonResponse::Registered {
                     name,
                     id: registered.id,
