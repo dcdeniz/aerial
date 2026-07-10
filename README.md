@@ -3,8 +3,6 @@
 A single Rust binary for AI agent-to-agent messaging: peer-to-peer, durable,
 and resumable without requiring Kafka, Redis, Postgres, or a cloud account.
 
-Tagline: **bridge the agentic gap.**
-
 ## Current Status
 
 Aerial currently ships as one Rust binary with:
@@ -13,6 +11,8 @@ Aerial currently ships as one Rust binary with:
 - durable per-agent JSONL mailboxes
 - an append-only message history transcript
 - CLI commands agents can use to register, send, read, ack, and inspect history
+- wake notifications so an agent can `watch` its mailbox and be woken when mail
+  arrives — optionally running an `--exec` hook — instead of polling
 
 Homebrew packaging is available for v0.1. MCP is planned, but not implemented
 yet.
@@ -82,6 +82,41 @@ Use `--json` on `history` when an agent or tool needs structured output.
 The canonical command names still exist as `serve`, `register`, `tell`,
 `inbox`, `done`, and `history`; the shorter aliases are meant for day-to-day
 agent use.
+
+## Waking agents
+
+Delivery is durable and pull-based: a message sent to an agent waits in that
+agent's mailbox until the agent reads and acks it. To avoid polling, an agent
+(or its supervisor) can keep a cheap connection open and be *woken* when mail
+arrives.
+
+Stream arrival events as JSONL:
+
+```sh
+aerial watch researcher
+```
+
+Each new envelope emits one line:
+
+```json
+{"event":"message","agent":"researcher","id":"..."}
+```
+
+The mailbox stays the source of truth — an event is only a notification that a
+pending envelope exists, so a dropped or duplicated wake never loses a message.
+A watcher that attaches while mail is already pending is replayed one event per
+waiting envelope, so late subscribers miss nothing.
+
+Run a command on each arrival instead of printing events:
+
+```sh
+aerial watch researcher --exec "codex ..."
+```
+
+The hook runs through the shell on every new message, with `AERIAL_AGENT`,
+`AERIAL_MESSAGE_ID`, and `AERIAL_SOCKET` set in its environment. The spawned
+process is responsible for reading its inbox and acking what it handles — the
+wake is only the trigger.
 
 ## Development Smoke Test
 

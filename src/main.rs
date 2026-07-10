@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use aerial::daemon;
-use aerial::{Daemon, DaemonRequest, DaemonResponse, Mailbox};
+use aerial::{Daemon, DaemonRequest, DaemonResponse, Mailbox, WatchEvent};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use uuid::Uuid;
@@ -92,6 +92,19 @@ enum Command {
         #[arg(long, default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
     },
+    /// Stream wake notifications for an agent, or run a hook on each.
+    Watch {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name to watch for incoming mail.
+        agent: String,
+        /// Shell command to run when a message arrives. The spawned process
+        /// reads and acknowledges its own inbox; without it, events are
+        /// printed as JSONL instead.
+        #[arg(long)]
+        exec: Option<String>,
+    },
     /// Append a message to a local mailbox.
     #[command(name = "mailbox-send", hide = true)]
     Send {
@@ -170,6 +183,25 @@ fn main() -> anyhow::Result<()> {
         Command::Mcp { socket } => {
             aerial::mcp::serve_stdio(socket).context("serve mcp adapter")?;
         }
+        Command::Watch {
+            socket,
+            agent,
+            exec,
+        } => {
+            daemon::watch(&socket, &agent, |event| match &exec {
+                Some(command) => {
+                    let WatchEvent::Message { agent, id } = &event;
+                    eprintln!("aerial: message {id} for {agent}; running hook");
+                    if let Err(error) = run_exec_hook(command, &socket, agent, *id) {
+                        eprintln!("aerial: exec hook error: {error}");
+                    }
+                }
+                None => match serde_json::to_string(&event) {
+                    Ok(line) => println!("{line}"),
+                    Err(error) => eprintln!("aerial: failed to encode event: {error}"),
+                },
+            })?;
+        }
         Command::Send { mailbox, body } => {
             let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
             let envelope = aerial::Envelope::new(
@@ -210,4 +242,30 @@ fn print_history(response: DaemonResponse) -> anyhow::Result<()> {
         }
         other => print_response(other),
     }
+}
+
+/// Run a wake hook for a single arrived message. The command runs through the
+/// platform shell and inherits stdio, so the hooked process can read and ack
+/// its own inbox. The agent name, message id, and socket path are exposed as
+/// environment variables for convenience.
+fn run_exec_hook(command: &str, socket: &Path, agent: &str, id: Uuid) -> anyhow::Result<()> {
+    let mut hook = if cfg!(windows) {
+        let mut shell = std::process::Command::new("cmd");
+        shell.arg("/C").arg(command);
+        shell
+    } else {
+        let mut shell = std::process::Command::new("sh");
+        shell.arg("-c").arg(command);
+        shell
+    };
+    let status = hook
+        .env("AERIAL_AGENT", agent)
+        .env("AERIAL_MESSAGE_ID", id.to_string())
+        .env("AERIAL_SOCKET", socket)
+        .status()
+        .with_context(|| format!("run exec hook: {command}"))?;
+    if !status.success() {
+        eprintln!("aerial: exec hook for {agent} exited with status {status}");
+    }
+    Ok(())
 }

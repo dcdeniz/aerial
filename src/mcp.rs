@@ -332,8 +332,14 @@ mod tests {
 
     #[test]
     fn build_request_maps_register() {
-        let request = build_request(Some("register"), &json!({ "name": "jeff" })).expect("register");
-        assert_eq!(request, DaemonRequest::Register { name: "jeff".to_owned() });
+        let request =
+            build_request(Some("register"), &json!({ "name": "jeff" })).expect("register");
+        assert_eq!(
+            request,
+            DaemonRequest::Register {
+                name: "jeff".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -363,8 +369,11 @@ mod tests {
 
     #[test]
     fn build_request_rejects_bad_uuid() {
-        let error =
-            build_request(Some("done"), &json!({ "agent": "jeff", "id": "not-a-uuid" })).unwrap_err();
+        let error = build_request(
+            Some("done"),
+            &json!({ "agent": "jeff", "id": "not-a-uuid" }),
+        )
+        .unwrap_err();
         assert!(error.contains("uuid"));
     }
 

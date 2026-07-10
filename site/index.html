@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aerial — bridge the agentic gap</title>
+<title>Aerial - bridge the agentic gap</title>
 <style>
   :root {
     --bg-top: #e2e8ec;
@@ -15,32 +15,11 @@
     --accent: #1d5a96;
     --accent-light: #4f93c9;
     --accent-dark: #123a63;
-    --navy: #14232f;
-    --navy-2: #1d3446;
-    --counter-bg: #0d1210;
-    --counter-fg: #39ff14;
-    --shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 24px rgba(20,30,38,0.18);
-  }
-
-  :root[data-theme="dark"] {
-    --bg-top: #4b4e51;
-    --bg-bot: #2a2c2e;
-    --paper: #37393b;
-    --paper-border: #5a5d60;
-    --ink: #eef0f1;
-    --muted: #b7bcbf;
-    --accent: #7db1e0;
-    --accent-light: #9dc7ea;
-    --accent-dark: #2c5a80;
-    --navy: #0e1418;
-    --navy-2: #182229;
-    --counter-bg: #050805;
-    --counter-fg: #39ff14;
-    --shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 10px 24px rgba(0,0,0,0.45);
+    --shadow: 0 1px 0 rgba(255,255,255,0.65) inset, 0 10px 24px rgba(20,30,38,0.18);
   }
 
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
+    :root {
       --bg-top: #4b4e51;
       --bg-bot: #2a2c2e;
       --paper: #37393b;
@@ -50,556 +29,324 @@
       --accent: #7db1e0;
       --accent-light: #9dc7ea;
       --accent-dark: #2c5a80;
-      --navy: #0e1418;
-      --navy-2: #182229;
-      --counter-bg: #050805;
-      --counter-fg: #39ff14;
       --shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 10px 24px rgba(0,0,0,0.45);
     }
   }
 
   * { box-sizing: border-box; }
 
+  html,
+  body {
+    min-height: 100%;
+  }
+
   body {
     margin: 0;
+    min-height: 100svh;
+    overflow: hidden;
     font-family: Arial, Helvetica, sans-serif;
     color: var(--ink);
     background: linear-gradient(180deg, var(--bg-top), var(--bg-bot) 420px, var(--bg-bot));
-    background-attachment: fixed;
   }
-
-  .skip-link {
-    position: absolute;
-    left: -999px;
-    top: 0;
-    background: var(--paper);
-    color: var(--ink);
-    padding: 8px 14px;
-    z-index: 100;
-  }
-  .skip-link:focus { left: 8px; top: 8px; }
 
   a { color: var(--accent); }
-  a:focus-visible, button:focus-visible {
+  a:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
-  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  h1, h2, h3, p { margin: 0; }
+  h1, h2, h3 { text-wrap: balance; }
 
-  /* ---- ticker ---- */
-  .ticker {
-    background: var(--navy);
-    color: #dce6ec;
-    overflow: hidden;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--navy-2);
-  }
-  .ticker-track {
-    display: inline-block;
-    padding-left: 100%;
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    animation: scroll-ticker 26s linear infinite;
-  }
-  @keyframes scroll-ticker {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ticker-track { animation: none; padding-left: 1rem; }
+  .site-shell {
+    min-height: 100svh;
+    display: grid;
+    grid-template-rows: auto 1fr;
   }
 
-  /* ---- header ---- */
   .site-header {
-    background: linear-gradient(180deg, var(--paper) 0%, var(--bg-top) 60%, var(--bg-bot));
+    background: linear-gradient(180deg, var(--paper) 0%, var(--bg-top) 62%, var(--bg-bot));
     border-bottom: 1px solid var(--paper-border);
   }
+
   .header-inner {
-    max-width: 960px;
+    width: min(1080px, calc(100% - 32px));
     margin: 0 auto;
-    padding: 14px 20px;
+    padding: 14px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    flex-wrap: wrap;
   }
+
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .brand svg {
+    width: 31px;
+    height: 31px;
+    flex: 0 0 auto;
+  }
+
+  .brand-word {
+    font-size: 1.42rem;
+    font-weight: 700;
+  }
+
+  .dot { color: var(--accent); }
+
+  .site-nav {
     display: flex;
     align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    color: var(--ink);
-  }
-  .brand svg { width: 30px; height: 30px; color: var(--ink); flex-shrink: 0; }
-  .brand-word {
-    font-weight: bold;
-    font-size: 1.4rem;
-    letter-spacing: -0.02em;
-  }
-  .brand .dot { color: var(--accent); }
-  .site-nav {
-    font-size: 0.88rem;
-  }
-  .site-nav a { text-decoration: none; }
-  .site-nav a:hover { text-decoration: underline; }
-  .site-nav span { color: var(--muted); margin: 0 8px; }
-
-  /* ---- deck ---- */
-  main { display: block; }
-  .deck {
-    max-width: 960px;
-    width: 92%;
-    margin: 32px auto 0;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-    padding-bottom: 40px;
-  }
-  .slide {
-    position: relative;
-    background: var(--paper);
-    border: 1px solid var(--paper-border);
-    box-shadow: var(--shadow);
-    border-radius: 3px;
-    padding: clamp(24px, 4vw, 48px);
-  }
-  .slide-number {
-    position: absolute;
-    right: 14px;
-    bottom: 10px;
-    margin: 0;
-    font-family: "Courier New", Courier, monospace;
-    font-size: 0.72rem;
-    color: var(--muted);
-  }
-  .eyebrow {
-    font-family: "Courier New", Courier, monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin: 0 0 10px;
+    gap: 10px;
   }
 
-  /* ---- slide 1: title ---- */
-  .slide--title { text-align: center; padding-top: clamp(40px, 6vw, 72px); padding-bottom: clamp(40px, 6vw, 72px); }
-  .title-logo { width: 84px; height: 84px; color: var(--ink); margin: 0 auto 6px; display: block; }
-  .title-word {
-    font-size: clamp(2.6rem, 7vw, 4.2rem);
-    font-weight: bold;
-    letter-spacing: -0.02em;
-  }
-  .title-word .dot { color: var(--accent); }
-  .tagline {
-    font-size: clamp(1rem, 2.4vw, 1.25rem);
-    color: var(--muted);
-    font-style: italic;
-    margin-top: 6px;
-  }
-  .deck-subtitle {
-    max-width: 44ch;
-    margin: 18px auto 0;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .confidential {
-    margin-top: 22px;
-    font-family: "Courier New", Courier, monospace;
-    font-size: 0.72rem;
-    color: var(--muted);
-    letter-spacing: 0.04em;
-  }
-  .cta-row {
-    margin-top: 26px;
-    display: flex;
-    gap: 14px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  /* ---- buttons ---- */
+  .nav-button,
   .btn {
-    display: inline-block;
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: bold;
-    font-size: 0.95rem;
-    text-decoration: none;
-    padding: 12px 26px;
-    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 9px 18px;
     border: 1px solid var(--accent-dark);
-    color: #fff;
+    border-radius: 999px;
     background: linear-gradient(180deg, var(--accent-light), var(--accent) 55%, var(--accent-dark));
     box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 3px 6px rgba(18,40,63,0.35);
-  }
-  .btn:hover { filter: brightness(1.05); }
-  .btn:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(18,40,63,0.3) inset; }
-  .btn--ghost {
-    color: var(--accent);
-    background: transparent;
-    border: 1px solid var(--paper-border);
-    box-shadow: none;
-    font-weight: normal;
-  }
-
-  /* ---- agenda ---- */
-  .agenda-list {
-    list-style: none;
-    counter-reset: agenda;
-    margin: 20px 0 0;
-    padding: 0;
-    max-width: 46ch;
-  }
-  .agenda-list li {
-    counter-increment: agenda;
-    display: flex;
-    gap: 14px;
-    padding: 10px 0;
-    border-bottom: 1px dotted var(--paper-border);
-    align-items: baseline;
-  }
-  .agenda-list li::before {
-    content: counter(agenda) ".";
-    font-family: "Courier New", Courier, monospace;
-    color: var(--accent);
-    font-weight: bold;
-    width: 1.4em;
-  }
-  .agenda-list li.skip { color: var(--muted); font-style: italic; }
-
-  /* ---- problem ---- */
-  .bullet-list { margin: 18px 0 0; padding: 0; list-style: none; max-width: 60ch; }
-  .bullet-list li {
-    padding: 8px 0 8px 26px;
-    position: relative;
-    line-height: 1.5;
-  }
-  .bullet-list li::before {
-    content: "■";
-    position: absolute;
-    left: 0;
-    top: 8px;
-    color: var(--accent);
-    font-size: 0.7rem;
-  }
-
-  /* ---- solution / features ---- */
-  .feature-grid {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 18px;
-  }
-  .feature-card {
-    border: 1px solid var(--paper-border);
-    border-radius: 4px;
-    padding: 18px;
-    background: color-mix(in srgb, var(--paper) 96%, var(--accent) 4%);
-  }
-  .feature-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(180deg, var(--accent-light), var(--accent));
-    font-size: 1.3rem;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset;
-  }
-  .feature-card h3 { font-size: 1.02rem; margin-bottom: 6px; }
-  .feature-card p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
-
-  /* ---- traction / stock photo / roadmap ---- */
-  .stock-photo {
-    margin-top: 18px;
-    border-radius: 4px;
-    height: 190px;
-    background:
-      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35), transparent 60%),
-      linear-gradient(135deg, var(--accent-light), var(--accent) 45%, var(--accent-dark));
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: #fff;
-    font-weight: bold;
-    font-size: 1.1rem;
-    text-align: center;
-    padding: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
   }
-  .stock-caption {
-    margin-top: 6px;
-    font-size: 0.78rem;
+
+  .nav-button:hover,
+  .btn:hover {
+    filter: brightness(1.05);
+  }
+
+  main {
+    min-height: 0;
+    display: grid;
+    align-items: center;
+    padding: clamp(18px, 4vw, 44px) 16px;
+  }
+
+  .one-pager {
+    width: min(1080px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(280px, 0.92fr) minmax(360px, 1.08fr);
+    gap: clamp(18px, 4vw, 42px);
+    align-items: center;
+  }
+
+  .hero { text-align: left; }
+
+  .title-logo {
+    width: clamp(60px, 8vw, 88px);
+    height: clamp(60px, 8vw, 88px);
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+
+  .title-word {
+    font-size: clamp(3.1rem, 9vw, 5.9rem);
+    line-height: 0.92;
+    font-weight: 700;
+  }
+
+  .tagline {
+    margin-top: 12px;
     color: var(--muted);
+    font-size: clamp(1rem, 2.2vw, 1.35rem);
     font-style: italic;
   }
-  .logo-strip {
-    margin-top: 26px;
+
+  .summary {
+    max-width: 42ch;
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.55vw, 1.08rem);
+    line-height: 1.55;
+  }
+
+  .cta-row {
+    margin-top: 24px;
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
   }
-  .logo-strip span {
-    font-family: "Courier New", Courier, monospace;
-    font-weight: bold;
-    letter-spacing: 0.06em;
-    color: var(--muted);
+
+  .btn--ghost {
+    color: var(--accent);
+    background: transparent;
+    border-color: var(--paper-border);
+    box-shadow: none;
+    font-weight: 400;
+  }
+
+  .capabilities {
+    background: var(--paper);
     border: 1px solid var(--paper-border);
     border-radius: 3px;
-    padding: 8px 14px;
-    background: color-mix(in srgb, var(--paper) 94%, var(--ink) 6%);
-    filter: grayscale(1);
+    box-shadow: var(--shadow);
+    padding: clamp(20px, 3.2vw, 36px);
   }
-  .logo-caption { margin-top: 8px; font-size: 0.78rem; color: var(--muted); font-style: italic; }
 
-  .roadmap-wrap { margin-top: 24px; overflow-x: auto; }
-  table.roadmap {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.92rem;
-    min-width: 420px;
-  }
-  table.roadmap th {
-    text-align: left;
-    border-bottom: 3px solid var(--accent);
-    padding: 8px 10px;
-    font-size: 0.78rem;
-    letter-spacing: 0.06em;
+  .eyebrow {
+    color: var(--accent);
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--muted);
-  }
-  table.roadmap td {
-    padding: 10px;
-    border-bottom: 1px solid var(--paper-border);
-    font-variant-numeric: tabular-nums;
-  }
-  table.roadmap tr:nth-child(even) td {
-    background: color-mix(in srgb, var(--paper) 92%, var(--ink) 8%);
   }
 
-  /* ---- contact / Q&A ---- */
-  .testimonial {
-    margin: 20px 0 0;
-    padding: 16px 20px;
-    border-left: 4px solid var(--accent);
-    background: color-mix(in srgb, var(--paper) 95%, var(--accent) 5%);
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
+  .capabilities h2 {
+    margin-top: 8px;
+    font-size: clamp(1.55rem, 3.5vw, 2.25rem);
   }
-  .avatar {
-    width: 40px;
-    height: 40px;
+
+  .feature-grid {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .feature-card {
+    min-width: 0;
+    border: 1px solid var(--paper-border);
+    border-radius: 4px;
+    padding: 16px;
+    background: color-mix(in srgb, var(--paper) 96%, var(--accent) 4%);
+  }
+
+  .feature-icon {
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
-    background: linear-gradient(180deg, var(--accent-light), var(--accent-dark));
-    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
-    font-weight: bold;
-    flex-shrink: 0;
+    margin-bottom: 10px;
+    background: linear-gradient(180deg, var(--accent-light), var(--accent));
+    box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset;
+    font-size: 1.22rem;
   }
-  .testimonial blockquote { margin: 0 0 6px; font-style: italic; }
-  .testimonial cite { font-style: normal; color: var(--muted); font-size: 0.85rem; }
-  .qna-note { margin-top: 16px; color: var(--muted); font-size: 0.85rem; }
 
-  /* ---- footer ---- */
-  .site-footer {
-    background: var(--navy);
-    color: #c4d0d6;
-    margin-top: 32px;
+  .feature-card h3 {
+    margin-bottom: 6px;
+    font-size: 1rem;
   }
-  .footer-inner {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 24px 20px 32px;
-    text-align: center;
-    font-size: 0.8rem;
-    line-height: 1.7;
+
+  .feature-card p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
   }
-  .footer-inner p { margin: 4px 0; }
-  .counter-digits {
-    display: inline-block;
-    background: var(--counter-bg);
-    color: var(--counter-fg);
-    font-family: "Courier New", Courier, monospace;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.12em;
-    padding: 2px 8px;
-    border-radius: 2px;
-    text-shadow: 0 0 6px rgba(57,255,20,0.7);
+
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .header-inner {
+      width: min(100% - 24px, 1080px);
+      padding: 10px 0;
+    }
+    .brand-word { font-size: 1.22rem; }
+    .brand svg { width: 27px; height: 27px; }
+    .site-nav { gap: 8px; }
+    .nav-button { min-height: 34px; padding: 7px 12px; }
+    main { align-items: start; padding: 16px 12px 20px; }
+    .one-pager { grid-template-columns: 1fr; gap: 16px; }
+    .hero { text-align: center; }
+    .title-logo { margin-left: auto; margin-right: auto; }
+    .summary { margin-left: auto; margin-right: auto; }
+    .cta-row { justify-content: center; }
+    .feature-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-height: 700px) and (min-width: 821px) {
+    .title-logo { width: 58px; height: 58px; }
+    .title-word { font-size: 4.3rem; }
+    .summary { margin-top: 12px; line-height: 1.42; }
+    .cta-row { margin-top: 16px; }
+    .capabilities { padding: 22px; }
+    .feature-grid { margin-top: 14px; }
+    .feature-card { padding: 13px; }
+    .feature-card p { line-height: 1.35; }
   }
 </style>
 </head>
 <body>
+<div class="site-shell">
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="https://github.com/dcdeniz/aerial" aria-label="Aerial on GitHub">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="25" y1="99" x2="25" y2="92"></line>
+          <line x1="25" y1="92" x2="88" y2="12"></line>
+          <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
+          <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
+          <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
+          <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
+          <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
+        </svg>
+        <span class="brand-word">aerial<span class="dot">.</span></span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="nav-button" href="https://github.com/dcdeniz/aerial">GitHub</a>
+        <a class="nav-button" href="mailto:deniz@neat.is">Contact</a>
+      </nav>
+    </div>
+  </header>
 
-<a class="skip-link" href="#main">Skip to content</a>
+  <main id="main">
+    <div class="one-pager">
+      <section class="hero" aria-labelledby="title">
+        <svg class="title-logo" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="25" y1="99" x2="25" y2="92"></line>
+          <line x1="25" y1="92" x2="88" y2="12"></line>
+          <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
+          <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
+          <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
+          <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
+          <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
+        </svg>
+        <h1 class="title-word" id="title">aerial<span class="dot">.</span></h1>
+        <p class="tagline">bridge the agentic gap.</p>
+        <p class="summary">A single Rust binary for agent-to-agent messaging. Peer-to-peer, durable, and resumable without a broker, database, or cloud account.</p>
+        <div class="cta-row">
+          <a class="btn" href="https://github.com/dcdeniz/aerial">GitHub</a>
+          <a class="btn btn--ghost" href="mailto:deniz@neat.is">Contact</a>
+        </div>
+      </section>
 
-<div class="ticker" role="presentation" aria-hidden="true">
-  <div class="ticker-track">
-    📡&nbsp; NEW: NOW WITH RUST SUPPORT &nbsp;·&nbsp; SIGN UP FOR OUR NEWSLETTER (COMING SOON) &nbsp;·&nbsp; BOOKMARK THIS PAGE &nbsp;·&nbsp; ADD TO YOUR RSS READER &nbsp;·&nbsp; 📡&nbsp; NEW: NOW WITH RUST SUPPORT &nbsp;·&nbsp; SIGN UP FOR OUR NEWSLETTER (COMING SOON) &nbsp;·&nbsp; BOOKMARK THIS PAGE &nbsp;·&nbsp; ADD TO YOUR RSS READER &nbsp;·&nbsp;
-  </div>
+      <section class="capabilities" aria-labelledby="capabilities-title">
+        <p class="eyebrow">02 - What it can do</p>
+        <h2 id="capabilities-title">What it can do</h2>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">📡</div>
+            <h3>Peer-to-peer messaging</h3>
+            <p>Agents can send named messages through a local daemon.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">🔗</div>
+            <h3>Durable mailboxes</h3>
+            <p>Messages wait on disk until the recipient reads and acks them.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">⚙️</div>
+            <h3>One Rust binary</h3>
+            <p>Runs locally with simple CLI commands and no required service stack.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
 </div>
-
-<header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="#top" aria-label="Aerial, home">
-      <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
-        <line x1="25" y1="99" x2="25" y2="92"></line>
-        <line x1="25" y1="92" x2="88" y2="12"></line>
-        <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
-        <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
-        <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
-        <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
-        <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
-      </svg>
-      <span class="brand-word">aerial<span class="dot">.</span></span>
-    </a>
-    <nav class="site-nav" aria-label="Primary">
-      <a href="#agenda">Agenda</a><span aria-hidden="true">|</span>
-      <a href="#problem">Problem</a><span aria-hidden="true">|</span>
-      <a href="#solution">Solution</a><span aria-hidden="true">|</span>
-      <a href="#roadmap">Roadmap</a><span aria-hidden="true">|</span>
-      <a href="#contact">Contact</a>
-    </nav>
-  </div>
-</header>
-
-<main id="main">
-  <div class="deck">
-
-    <section class="slide slide--title" id="top" aria-labelledby="s1-title">
-      <svg class="title-logo" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
-        <line x1="25" y1="99" x2="25" y2="92"></line>
-        <line x1="25" y1="92" x2="88" y2="12"></line>
-        <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
-        <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
-        <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
-        <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
-        <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
-      </svg>
-      <h1 class="title-word" id="s1-title">aerial<span class="dot">.</span></h1>
-      <p class="tagline">bridge the agentic gap.</p>
-      <p class="deck-subtitle">A single Rust binary for agent-to-agent messaging. Peer-to-peer, resumable, no browser tabs required.</p>
-      <p class="confidential">v0.1.0-beta &nbsp;—&nbsp; internal draft &nbsp;—&nbsp; do not distribute</p>
-      <div class="cta-row">
-        <a class="btn" href="#contact">Download Aerial v0.1.0-beta</a>
-        <a class="btn btn--ghost" href="#solution">View Documentation »</a>
-      </div>
-      <p class="slide-number">Slide 1 of 6</p>
-    </section>
-
-    <section class="slide" id="agenda" aria-labelledby="s2-title">
-      <p class="eyebrow">Agenda</p>
-      <h2 id="s2-title">Today's Discussion</h2>
-      <ol class="agenda-list">
-        <li>The Problem</li>
-        <li>The Solution</li>
-        <li>Traction &amp; Roadmap</li>
-        <li class="skip">Live Demo (skipped for time)</li>
-        <li>Q&amp;A</li>
-      </ol>
-      <p class="slide-number">Slide 2 of 6</p>
-    </section>
-
-    <section class="slide" id="problem" aria-labelledby="s3-title">
-      <p class="eyebrow">01 — The Problem</p>
-      <h2 id="s3-title">Your agents can't talk to each other.</h2>
-      <ul class="bullet-list">
-        <li>Agents work in isolation, even when they shouldn't.</li>
-        <li>Context dies at the end of every session.</li>
-        <li>Nobody can tell you what happened, or why.</li>
-        <li>"Multi-agent orchestration" mostly means five browser tabs and a prayer.</li>
-      </ul>
-      <p class="slide-number">Slide 3 of 6</p>
-    </section>
-
-    <section class="slide" id="solution" aria-labelledby="s4-title">
-      <p class="eyebrow">02 — The Solution</p>
-      <h2 id="s4-title">Aerial fixes this.</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">📡</div>
-          <h3>Peer-to-Peer Messaging</h3>
-          <p>Agents talk directly. No polling, no relay, no excuses.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">🔗</div>
-          <h3>Resumable Mailboxes</h3>
-          <p>Every agent keeps its context. Pick the conversation back up, any time.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">⚙️</div>
-          <h3>One Rust Binary</h3>
-          <p>Ships as a single executable. No runtime, no dependencies, no drama.</p>
-        </div>
-      </div>
-      <p class="slide-number">Slide 4 of 6</p>
-    </section>
-
-    <section class="slide" id="roadmap" aria-labelledby="s5-title">
-      <p class="eyebrow">03 — Traction &amp; Roadmap</p>
-      <h2 id="s5-title">Momentum is building.</h2>
-      <div class="stock-photo" role="img" aria-label="Stock photo of a cross-functional team of autonomous agents synergizing in a sunlit open-plan office">
-        [ Stock photo: agents synergizing ]
-      </div>
-      <p class="stock-caption">Pictured: a cross-functional team of autonomous agents synergizing in a sunlit open-plan office. Not an actual screenshot of Aerial, which does not have a UI.</p>
-
-      <div class="logo-strip" aria-label="Technologies used">
-        <span>RUST</span><span>TOKIO</span><span>SERDE</span><span>SQLITE</span><span>CARGO</span>
-      </div>
-      <p class="logo-caption">As seen nowhere yet — but any day now.</p>
-
-      <div class="roadmap-wrap">
-        <table class="roadmap">
-          <thead>
-            <tr><th scope="col">Quarter</th><th scope="col">Milestone</th><th scope="col">Status</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Q1 2026</td><td>Alpha release</td><td>✅ Shipped</td></tr>
-            <tr><td>Q2 2026</td><td>Beta release</td><td>🚧 In progress</td></tr>
-            <tr><td>Q3 2026</td><td>???</td><td>❓ TBD</td></tr>
-            <tr><td>Q4 2026</td><td>Profit</td><td>💰 Pending</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="slide-number">Slide 5 of 6</p>
-    </section>
-
-    <section class="slide" id="contact" aria-labelledby="s6-title">
-      <p class="eyebrow">04 — Q&amp;A</p>
-      <h2 id="s6-title">Questions?</h2>
-      <div class="testimonial">
-        <div class="avatar" aria-hidden="true">AD</div>
-        <div>
-          <blockquote>"I migrated my whole agent fleet to Aerial and now I don't understand my own system either."</blockquote>
-          <cite>— A. Developer, Some Company, Probably</cite>
-        </div>
-      </div>
-      <div class="cta-row" style="justify-content: flex-start;">
-        <a class="btn" href="#top">Download Aerial v0.1.0-beta</a>
-        <a class="btn btn--ghost" href="#top">Read the Docs »</a>
-      </div>
-      <p class="qna-note">Live demo skipped for time. Please direct further questions to the mailing list, which does not exist yet.</p>
-      <p class="slide-number">Slide 6 of 6</p>
-    </section>
-
-  </div>
-</main>
-
-<footer class="site-footer">
-  <div class="footer-inner">
-    <p>VISITORS: <span class="counter-digits">003482</span></p>
-    <p>Best viewed at 1024×768. Optimized for Internet Explorer 9.</p>
-    <p>🚧 Under construction — always beta 🚧</p>
-    <p>© 2026 Aerial Project. All rights reserved (probably).</p>
-  </div>
-</footer>
-
 </body>
 </html>
