@@ -26,6 +26,18 @@ pub enum DaemonRequest {
     History {
         limit: Option<usize>,
     },
+    Watch {
+        agent: String,
+    },
+}
+
+/// A wake notification streamed over a `Watch` connection. The mailbox remains
+/// the source of truth; an event only signals that a pending envelope exists,
+/// so a lost or duplicated event never loses a message.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "event", rename_all = "snake_case")]
+pub enum WatchEvent {
+    Message { agent: String, id: Uuid },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
