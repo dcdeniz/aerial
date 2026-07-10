@@ -337,8 +337,14 @@ mod tests {
 
     #[test]
     fn build_request_maps_register() {
-        let request = build_request(Some("register"), &json!({ "name": "jeff" })).expect("register");
-        assert_eq!(request, DaemonRequest::Register { name: "jeff".to_owned() });
+        let request =
+            build_request(Some("register"), &json!({ "name": "jeff" })).expect("register");
+        assert_eq!(
+            request,
+            DaemonRequest::Register {
+                name: "jeff".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -368,8 +374,11 @@ mod tests {
 
     #[test]
     fn build_request_rejects_bad_uuid() {
-        let error =
-            build_request(Some("done"), &json!({ "agent": "jeff", "id": "not-a-uuid" })).unwrap_err();
+        let error = build_request(
+            Some("done"),
+            &json!({ "agent": "jeff", "id": "not-a-uuid" }),
+        )
+        .unwrap_err();
         assert!(error.contains("uuid"));
     }
 
@@ -406,7 +415,13 @@ mod tests {
 
         let tools: Value = serde_json::from_str(lines[1]).expect("tools/list json");
         assert_eq!(tools["id"], 2);
-        assert_eq!(tools["result"]["tools"].as_array().expect("tools array").len(), 5);
+        assert_eq!(
+            tools["result"]["tools"]
+                .as_array()
+                .expect("tools array")
+                .len(),
+            5
+        );
     }
 
     #[test]
@@ -414,7 +429,12 @@ mod tests {
         use std::io::Cursor;
 
         let mut output = Vec::new();
-        serve(Cursor::new("{ not json\n"), &mut output, Path::new("unused.sock")).expect("serve");
+        serve(
+            Cursor::new("{ not json\n"),
+            &mut output,
+            Path::new("unused.sock"),
+        )
+        .expect("serve");
         let response: Value = serde_json::from_slice(&output).expect("json");
         assert_eq!(response["error"]["code"], -32700);
     }
@@ -454,7 +474,10 @@ mod tests {
 
     /// Parse the daemon response JSON carried in a tool result's text content.
     fn tool_body(response: &Value) -> Value {
-        assert_eq!(response["result"]["isError"], false, "tool reported error: {response}");
+        assert_eq!(
+            response["result"]["isError"], false,
+            "tool reported error: {response}"
+        );
         let text = response["result"]["content"][0]["text"]
             .as_str()
             .expect("text content");
@@ -483,7 +506,12 @@ mod tests {
         assert_eq!(envelopes[0]["payload"]["body"], "hi bob");
         let envelope_id = envelopes[0]["id"].as_str().expect("envelope id").to_owned();
 
-        let acked = call_tool(&socket, 4, "done", json!({ "agent": "bob", "id": envelope_id }));
+        let acked = call_tool(
+            &socket,
+            4,
+            "done",
+            json!({ "agent": "bob", "id": envelope_id }),
+        );
         assert_eq!(tool_body(&acked)["status"], "acked");
 
         let inbox_after = call_tool(&socket, 5, "inbox", json!({ "agent": "bob" }));
