@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose an Aerial feature or product direction
+labels:
+  - enhancement
+body:
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product area
+      options:
+        - aerial-local
+        - aerial-server
+        - CLI
+        - MCP
+        - Protocol
+        - Packaging
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What agent workflow should this make better?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should Aerial do?
+    validations:
+      required: true
