@@ -59,5 +59,11 @@ jobs:
       - name: Cache Rust builds
         uses: Swatinem/rust-cache@v2
 
+      - name: Build CLI
+        run: cargo build --locked
+
       - name: Run local mailbox exchange
-        run: scripts/two-agent-smoke.sh
+        run: AERIAL_BIN=./target/debug/aerial scripts/two-agent-smoke.sh
+
+      - name: Run installed-style flow macros
+        run: AERIAL_BIN=./target/debug/aerial scripts/installed-e2e.sh

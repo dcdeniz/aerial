@@ -3,6 +3,22 @@
 All notable changes to Aerial are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [0.4.0] - 2026-07-11
+
+Fourth development release: common Aerial workflows are now first-class CLI and
+MCP macros, so users and agents do not have to stitch primitive commands
+together manually.
+
+### Added
+- `aerial exchange --from <agent> --to <agent> --body <message>` registers both
+  names, sends a message, and shows the recipient inbox plus recent history.
+- `aerial status [agent]` shows recent history and, when an agent is supplied,
+  that agent's pending mailbox.
+- `aerial drain <agent>` acknowledges every pending message for an agent.
+- MCP macro tools matching the CLI flows: `exchange`, `status`, and `drain`.
+- `scripts/installed-e2e.sh`, a package-style smoke test that runs against
+  `aerial` on `PATH` or an explicit `AERIAL_BIN`.
+
 ## [0.3.0] - 2026-07-11
 
 Third development release: Aerial can now supervise local worker agents instead

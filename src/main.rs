@@ -85,6 +85,55 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Show mailbox and recent history status in one command.
+    Status {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Optional agent name whose pending mailbox should be shown.
+        agent: Option<String>,
+        /// Number of most recent history records to include.
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        /// Print the raw JSON response instead of the compact view.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Acknowledge every pending message for an agent.
+    Drain {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name whose pending mailbox should be acknowledged.
+        agent: String,
+        /// Print the raw JSON response instead of the compact view.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Register two agents, send a message, and show the recipient inbox.
+    Exchange {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Sender agent name.
+        #[arg(long)]
+        from: String,
+        /// Recipient agent name.
+        #[arg(long)]
+        to: String,
+        /// Message body to store in the envelope payload.
+        #[arg(long)]
+        body: String,
+        /// Optional parent envelope id for lineage tracking.
+        #[arg(long)]
+        in_reply_to: Option<Uuid>,
+        /// Number of most recent history records to include.
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        /// Print the raw JSON response instead of the compact view.
+        #[arg(long)]
+        json: bool,
+    },
     /// Serve the MCP adapter over stdio, translating MCP tool calls into daemon requests.
     #[command(name = "mcp", hide = true)]
     Mcp {
@@ -226,6 +275,65 @@ fn main() -> anyhow::Result<()> {
                 print_history(response)?;
             }
         }
+        Command::Status {
+            socket,
+            agent,
+            limit,
+            json,
+        } => {
+            let report = status_report(&socket, agent.as_deref(), Some(limit))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                print_status_report(&report)?;
+            }
+        }
+        Command::Drain {
+            socket,
+            agent,
+            json,
+        } => {
+            let report = drain_agent(&socket, &agent)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                println!(
+                    "Agent {agent}: acked {} pending message(s)",
+                    report.acked.len()
+                );
+                for id in report.acked {
+                    println!("{id}");
+                }
+            }
+        }
+        Command::Exchange {
+            socket,
+            from,
+            to,
+            body,
+            in_reply_to,
+            limit,
+            json,
+        } => {
+            let report = exchange_report(&socket, &from, &to, &body, in_reply_to, Some(limit))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                println!(
+                    "Agent {} -> Agent {} \"{}\"",
+                    report.sent.from.short(),
+                    report.sent.to.short(),
+                    body.replace('\n', " ")
+                );
+                println!("Agent {to}: {} pending message(s)", report.pending.len());
+                for envelope in &report.pending {
+                    println!("{}", envelope.id);
+                }
+                for message in report.history {
+                    println!("{}", message.render_summary());
+                }
+            }
+        }
         Command::Mcp { socket } => {
             aerial::mcp::serve_stdio(socket).context("serve mcp adapter")?;
         }
@@ -363,6 +471,140 @@ fn print_history(response: DaemonResponse) -> anyhow::Result<()> {
         }
         other => print_response(other),
     }
+}
+
+#[derive(serde::Serialize)]
+struct StatusReport {
+    agent: Option<String>,
+    pending: Vec<aerial::Envelope>,
+    history: Vec<aerial::TranscriptMessage>,
+}
+
+#[derive(serde::Serialize)]
+struct DrainReport {
+    agent: String,
+    acked: Vec<Uuid>,
+}
+
+#[derive(serde::Serialize)]
+struct ExchangeReport {
+    from: String,
+    to: String,
+    sent: aerial::Envelope,
+    pending: Vec<aerial::Envelope>,
+    history: Vec<aerial::TranscriptMessage>,
+}
+
+fn status_report(
+    socket: &Path,
+    agent: Option<&str>,
+    limit: Option<usize>,
+) -> anyhow::Result<StatusReport> {
+    let pending = match agent {
+        Some(agent) => match daemon::request(
+            socket,
+            &DaemonRequest::Pending {
+                agent: agent.to_owned(),
+            },
+        )? {
+            DaemonResponse::Pending { envelopes } => envelopes,
+            other => anyhow::bail!("unexpected pending response: {other:?}"),
+        },
+        None => Vec::new(),
+    };
+    let history = match daemon::request(socket, &DaemonRequest::History { limit })? {
+        DaemonResponse::History { messages } => messages,
+        other => anyhow::bail!("unexpected history response: {other:?}"),
+    };
+    Ok(StatusReport {
+        agent: agent.map(str::to_owned),
+        pending,
+        history,
+    })
+}
+
+fn print_status_report(report: &StatusReport) -> anyhow::Result<()> {
+    if let Some(agent) = &report.agent {
+        println!("Agent {agent}: {} pending message(s)", report.pending.len());
+        for envelope in &report.pending {
+            println!("{}", envelope.id);
+        }
+    }
+    for message in &report.history {
+        println!("{}", message.render_summary());
+    }
+    Ok(())
+}
+
+fn drain_agent(socket: &Path, agent: &str) -> anyhow::Result<DrainReport> {
+    let pending = match daemon::request(
+        socket,
+        &DaemonRequest::Pending {
+            agent: agent.to_owned(),
+        },
+    )? {
+        DaemonResponse::Pending { envelopes } => envelopes,
+        other => anyhow::bail!("unexpected pending response: {other:?}"),
+    };
+    let mut acked = Vec::new();
+    for envelope in pending {
+        match daemon::request(
+            socket,
+            &DaemonRequest::Ack {
+                agent: agent.to_owned(),
+                id: envelope.id,
+            },
+        )? {
+            DaemonResponse::Acked { id } => acked.push(id),
+            other => anyhow::bail!("unexpected ack response: {other:?}"),
+        }
+    }
+    Ok(DrainReport {
+        agent: agent.to_owned(),
+        acked,
+    })
+}
+
+fn exchange_report(
+    socket: &Path,
+    from: &str,
+    to: &str,
+    body: &str,
+    in_reply_to: Option<Uuid>,
+    limit: Option<usize>,
+) -> anyhow::Result<ExchangeReport> {
+    daemon::request(
+        socket,
+        &DaemonRequest::Register {
+            name: from.to_owned(),
+        },
+    )?;
+    daemon::request(
+        socket,
+        &DaemonRequest::Register {
+            name: to.to_owned(),
+        },
+    )?;
+    let sent = match daemon::request(
+        socket,
+        &DaemonRequest::Send {
+            from: from.to_owned(),
+            to: to.to_owned(),
+            body: body.to_owned(),
+            in_reply_to,
+        },
+    )? {
+        DaemonResponse::Sent { envelope } => envelope,
+        other => anyhow::bail!("unexpected send response: {other:?}"),
+    };
+    let status = status_report(socket, Some(to), limit)?;
+    Ok(ExchangeReport {
+        from: from.to_owned(),
+        to: to.to_owned(),
+        sent,
+        pending: status.pending,
+        history: status.history,
+    })
 }
 
 /// Run a wake hook for a single arrived message. The command runs through the
