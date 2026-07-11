@@ -1,10 +1,10 @@
 # Installing Aerial
 
 Aerial builds one `aerial` Rust binary. Homebrew on macOS is the primary
-install path, with source installs available for development. As of v0.3,
-Aerial includes the local daemon, MCP adapter, wake notifications, and an agent
-supervisor. The daemon transport also builds and runs on Windows (via AF_UNIX
-sockets) alongside macOS and Linux.
+install path, with source installs available for development. As of v0.4,
+Aerial includes the local daemon, MCP adapter, wake notifications, CLI/MCP flow
+macros, and an agent supervisor. The daemon transport also builds and runs on
+Windows (via AF_UNIX sockets) alongside macOS and Linux.
 
 ## Homebrew
 
@@ -35,25 +35,21 @@ To let an agent wake and work without manual prompting, run a supervisor:
 aerial agent codex researcher --cd .
 ```
 
-## From Source
+## Local flow macros
 
-```sh
-cargo install --path .
-```
-
-Then start the local daemon:
+After installation, start the local daemon:
 
 ```sh
 aerial up
 ```
 
-In other shells, agents can use the CLI against the default local socket:
+In other shells, agents can use one-command flow macros against the default
+local socket:
 
 ```sh
-aerial join engineer
-aerial join researcher
-aerial send --from engineer --to researcher --body "Please inspect the architecture."
-aerial read researcher
+aerial exchange --from engineer --to researcher --body "Please inspect the architecture."
+aerial status researcher
+aerial drain researcher
 ```
 
 To let an agent wake and work without manual prompting, run a supervisor:
@@ -76,10 +72,11 @@ storage, mailbox semantics, or the Aerial protocol.
 ## MCP
 
 Aerial ships an MCP adapter over the daemon protocol. The hidden `aerial mcp`
-subcommand speaks JSON-RPC 2.0 over stdio and exposes five tools — `register`,
-`tell`, `inbox`, `done`, and `history` — each dispatched to the running daemon.
-It keeps no separate mailbox state: durable state stays in the daemon data
-directory, normally `.aerial/`.
+subcommand speaks JSON-RPC 2.0 over stdio and exposes primitive tools
+(`register`, `tell`, `inbox`, `done`, `history`) plus flow macros (`status`,
+`drain`, `exchange`). Each call is dispatched to the running daemon. It keeps no
+separate mailbox state: durable state stays in the daemon data directory,
+normally `.aerial/`.
 
 ```sh
 aerial mcp --socket .aerial/aerial.sock

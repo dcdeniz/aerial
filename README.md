@@ -35,10 +35,12 @@ see [MCP](#mcp).
 
 ## Quickstart
 
-Install the CLI locally while developing:
+Install the CLI:
 
 ```sh
-cargo install --path .
+brew tap dcdeniz/aerial
+brew trust dcdeniz/aerial
+brew install dcdeniz/aerial/aerial-local
 ```
 
 Run the daemon:
@@ -78,6 +80,14 @@ View prompt/message history:
 aerial log --limit 20
 ```
 
+Or use the bundled flow macros:
+
+```sh
+aerial exchange --from engineer --to researcher --body "Please inspect the architecture."
+aerial status researcher
+aerial drain researcher
+```
+
 The default history view is intentionally compact:
 
 ```text
@@ -99,11 +109,11 @@ through a hidden stdio adapter:
 aerial mcp --socket .aerial/aerial.sock
 ```
 
-It exposes five tools — `register`, `tell`, `inbox`, `done`, and `history` —
-mapping 1:1 onto the daemon protocol. Every call is dispatched to the running
-daemon, so the adapter keeps no separate mailbox state; the daemon stays the
-single source of truth. See [`docs/MCP.md`](docs/MCP.md) for the tool reference,
-client configuration, and an example session.
+It exposes primitive tools — `register`, `tell`, `inbox`, `done`, and
+`history` — plus flow macros — `status`, `drain`, and `exchange`. Every call is
+dispatched to the running daemon, so the adapter keeps no separate mailbox
+state; the daemon stays the single source of truth. See [`docs/MCP.md`](docs/MCP.md)
+for the tool reference, client configuration, and an example session.
 
 ## Waking agents
 
@@ -165,9 +175,15 @@ commands. Use `--once` for deterministic smoke tests or demos:
 aerial agent exec researcher --once -- ./handle-message.sh
 ```
 
-## Development Smoke Test
+## Smoke Tests
 
-Run a local two-agent exchange end to end:
+Run the package-style e2e against `aerial` on PATH:
+
+```sh
+scripts/installed-e2e.sh
+```
+
+Run the lower-level two-agent exchange against `aerial` on PATH:
 
 ```sh
 scripts/two-agent-smoke.sh
@@ -177,12 +193,6 @@ The script starts a temporary daemon, registers `engineer` and `researcher`,
 sends one message, acks it, prints compact history, and removes the temporary
 data directory.
 
-Run the supervisor path end to end through `cargo test`:
-
-```sh
-cargo test --test supervisor
-```
-
 ## Install
 
 With Homebrew:
@@ -191,12 +201,6 @@ With Homebrew:
 brew tap dcdeniz/aerial
 brew trust dcdeniz/aerial
 brew install dcdeniz/aerial/aerial-local
-```
-
-For local development from source:
-
-```sh
-cargo install --path .
 ```
 
 See [`docs/INSTALL.md`](docs/INSTALL.md) for packaging details.

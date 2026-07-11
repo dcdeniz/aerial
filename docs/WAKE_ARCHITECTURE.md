@@ -59,7 +59,7 @@ daemon -> durable mailbox -> watch event -> supervisor -> worker command -> ack 
 ```
 
 This is intentionally different from driving an arbitrary already-open
-terminal. Aerial can reliably wake and control processes it owns. For v0.3,
+terminal. Aerial can reliably wake and control processes it owns. For v0.4,
 that means running a fresh worker command per message. A later PTY/tmux runtime
 can make the worker visible in a persistent terminal while preserving the same
 mailbox and ack semantics.

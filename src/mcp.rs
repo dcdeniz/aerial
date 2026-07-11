@@ -6,9 +6,10 @@
 //! dispatched through [`daemon::request`] to the running daemon, which stays the
 //! single source of truth: this module keeps **no** mailbox state of its own.
 //!
-//! The tools map 1:1 onto the daemon protocol:
+//! The primitive tools map 1:1 onto the daemon protocol:
 //! `register` → Register, `tell` → Send, `inbox` → Pending, `done` → Ack,
-//! `history` → History.
+//! `history` → History. Macro tools bundle those same daemon calls into common
+//! flows without creating separate state.
 
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -98,7 +99,8 @@ fn initialize_result(params: Option<&Value>) -> Value {
     })
 }
 
-/// The five tools exposed to MCP clients, each mirroring a daemon request.
+/// Tools exposed to MCP clients. Primitive tools mirror daemon requests; macro
+/// tools bundle common Aerial flows using the same daemon state.
 fn tool_definitions() -> Value {
     json!([
         {
@@ -164,6 +166,58 @@ fn tool_definitions() -> Value {
                     }
                 }
             }
+        },
+        {
+            "name": "status",
+            "description": "Show an optional agent inbox plus recent sent-message history.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "agent": {
+                        "type": "string",
+                        "description": "Optional agent name whose pending mailbox should be included."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of recent history messages to return."
+                    }
+                }
+            }
+        },
+        {
+            "name": "drain",
+            "description": "Acknowledge every pending message for an agent.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "agent": {
+                        "type": "string",
+                        "description": "Agent name whose pending mailbox should be acknowledged."
+                    }
+                },
+                "required": ["agent"]
+            }
+        },
+        {
+            "name": "exchange",
+            "description": "Register two agents, send a message, then return the recipient inbox and recent history.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "from": { "type": "string", "description": "Sender agent name." },
+                    "to": { "type": "string", "description": "Recipient agent name." },
+                    "body": { "type": "string", "description": "Message body." },
+                    "in_reply_to": {
+                        "type": "string",
+                        "description": "Optional parent envelope UUID for lineage tracking."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of recent history messages to return."
+                    }
+                },
+                "required": ["from", "to", "body"]
+            }
         }
     ])
 }
@@ -181,6 +235,13 @@ fn handle_tool_call(socket: &Path, id: Value, params: Option<&Value>) -> Value {
     let name = params.get("name").and_then(Value::as_str);
     let empty = json!({});
     let arguments = params.get("arguments").unwrap_or(&empty);
+
+    match name {
+        Some("status") => return handle_status(socket, id, arguments),
+        Some("drain") => return handle_drain(socket, id, arguments),
+        Some("exchange") => return handle_exchange(socket, id, arguments),
+        _ => {}
+    }
 
     let request = match build_request(name, arguments) {
         Ok(request) => request,
@@ -220,6 +281,150 @@ fn build_request(name: Option<&str>, args: &Value) -> Result<DaemonRequest, Stri
     }
 }
 
+fn handle_status(socket: &Path, id: Value, args: &Value) -> Value {
+    let agent = optional_str(args, "agent");
+    let limit = match optional_usize(args, "limit") {
+        Ok(limit) => limit,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    match status(socket, agent.as_deref(), limit) {
+        Ok(result) => result_response(id, json_tool_result(&result)),
+        Err(message) => result_response(id, tool_error(&message)),
+    }
+}
+
+fn handle_drain(socket: &Path, id: Value, args: &Value) -> Value {
+    let agent = match required_str(args, "agent") {
+        Ok(agent) => agent,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    match drain(socket, &agent) {
+        Ok(result) => result_response(id, json_tool_result(&result)),
+        Err(message) => result_response(id, tool_error(&message)),
+    }
+}
+
+fn handle_exchange(socket: &Path, id: Value, args: &Value) -> Value {
+    let from = match required_str(args, "from") {
+        Ok(from) => from,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    let to = match required_str(args, "to") {
+        Ok(to) => to,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    let body = match required_str(args, "body") {
+        Ok(body) => body,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    let in_reply_to = match optional_uuid(args, "in_reply_to") {
+        Ok(id) => id,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    let limit = match optional_usize(args, "limit") {
+        Ok(limit) => limit,
+        Err(message) => return result_response(id, tool_error(&message)),
+    };
+    match exchange(socket, &from, &to, &body, in_reply_to, limit) {
+        Ok(result) => result_response(id, json_tool_result(&result)),
+        Err(message) => result_response(id, tool_error(&message)),
+    }
+}
+
+fn status(socket: &Path, agent: Option<&str>, limit: Option<usize>) -> Result<Value, String> {
+    let pending = match agent {
+        Some(agent) => match daemon::request(
+            socket,
+            &DaemonRequest::Pending {
+                agent: agent.to_owned(),
+            },
+        ) {
+            Ok(DaemonResponse::Pending { envelopes }) => json!(envelopes),
+            Ok(other) => return Err(format!("unexpected pending response: {other:?}")),
+            Err(error) => return Err(format!("daemon error: {error}")),
+        },
+        None => json!([]),
+    };
+    let history = match daemon::request(socket, &DaemonRequest::History { limit }) {
+        Ok(DaemonResponse::History { messages }) => json!(messages),
+        Ok(other) => return Err(format!("unexpected history response: {other:?}")),
+        Err(error) => return Err(format!("daemon error: {error}")),
+    };
+    Ok(json!({
+        "agent": agent,
+        "pending": pending,
+        "history": history
+    }))
+}
+
+fn drain(socket: &Path, agent: &str) -> Result<Value, String> {
+    let pending = match daemon::request(
+        socket,
+        &DaemonRequest::Pending {
+            agent: agent.to_owned(),
+        },
+    ) {
+        Ok(DaemonResponse::Pending { envelopes }) => envelopes,
+        Ok(other) => return Err(format!("unexpected pending response: {other:?}")),
+        Err(error) => return Err(format!("daemon error: {error}")),
+    };
+    let mut acked = Vec::new();
+    for envelope in pending {
+        match daemon::request(
+            socket,
+            &DaemonRequest::Ack {
+                agent: agent.to_owned(),
+                id: envelope.id,
+            },
+        ) {
+            Ok(DaemonResponse::Acked { id }) => acked.push(id),
+            Ok(other) => return Err(format!("unexpected ack response: {other:?}")),
+            Err(error) => return Err(format!("daemon error: {error}")),
+        }
+    }
+    Ok(json!({ "agent": agent, "acked": acked }))
+}
+
+fn exchange(
+    socket: &Path,
+    from: &str,
+    to: &str,
+    body: &str,
+    in_reply_to: Option<Uuid>,
+    limit: Option<usize>,
+) -> Result<Value, String> {
+    for name in [from, to] {
+        if let Err(error) = daemon::request(
+            socket,
+            &DaemonRequest::Register {
+                name: name.to_owned(),
+            },
+        ) {
+            return Err(format!("daemon error: {error}"));
+        }
+    }
+    let sent = match daemon::request(
+        socket,
+        &DaemonRequest::Send {
+            from: from.to_owned(),
+            to: to.to_owned(),
+            body: body.to_owned(),
+            in_reply_to,
+        },
+    ) {
+        Ok(DaemonResponse::Sent { envelope }) => envelope,
+        Ok(other) => return Err(format!("unexpected send response: {other:?}")),
+        Err(error) => return Err(format!("daemon error: {error}")),
+    };
+    let status = status(socket, Some(to), limit)?;
+    Ok(json!({
+        "from": from,
+        "to": to,
+        "sent": sent,
+        "status": status
+    }))
+}
+
 /// Render a successful daemon response as MCP tool content. The pretty-printed
 /// JSON response body is returned as a text block so the calling model sees the
 /// full structured result (envelope ids, pending lists, etc.).
@@ -229,6 +434,15 @@ fn tool_result(response: &DaemonResponse) -> Value {
     json!({
         "content": [ { "type": "text", "text": text } ],
         "isError": matches!(response, DaemonResponse::Error { .. })
+    })
+}
+
+fn json_tool_result(value: &Value) -> Value {
+    let text = serde_json::to_string_pretty(value)
+        .unwrap_or_else(|error| format!("<failed to serialize response: {error}>"));
+    json!({
+        "content": [ { "type": "text", "text": text } ],
+        "isError": false
     })
 }
 
@@ -245,6 +459,10 @@ fn required_str(args: &Value, key: &str) -> Result<String, String> {
         .and_then(Value::as_str)
         .map(str::to_owned)
         .ok_or_else(|| format!("missing required string argument: {key}"))
+}
+
+fn optional_str(args: &Value, key: &str) -> Option<String> {
+    args.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 
 fn optional_uuid(args: &Value, key: &str) -> Result<Option<Uuid>, String> {
@@ -309,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn tools_list_exposes_the_five_daemon_tools() {
+    fn tools_list_exposes_daemon_and_macro_tools() {
         let tools = tool_definitions();
         let names: Vec<&str> = tools
             .as_array()
@@ -317,7 +535,12 @@ mod tests {
             .iter()
             .map(|tool| tool["name"].as_str().expect("tool name"))
             .collect();
-        assert_eq!(names, ["register", "tell", "inbox", "done", "history"]);
+        assert_eq!(
+            names,
+            [
+                "register", "tell", "inbox", "done", "history", "status", "drain", "exchange"
+            ]
+        );
     }
 
     #[test]
@@ -420,7 +643,7 @@ mod tests {
                 .as_array()
                 .expect("tools array")
                 .len(),
-            5
+            8
         );
     }
 
@@ -525,6 +748,35 @@ mod tests {
 
         let history = call_tool(&socket, 6, "history", json!({ "limit": 10 }));
         assert_eq!(tool_body(&history)["status"], "history");
+
+        let exchange = call_tool(
+            &socket,
+            7,
+            "exchange",
+            json!({ "from": "alice", "to": "bob", "body": "macro hi", "limit": 10 }),
+        );
+        let exchange_body = tool_body(&exchange);
+        assert_eq!(exchange_body["from"], "alice");
+        assert_eq!(exchange_body["to"], "bob");
+        assert_eq!(exchange_body["sent"]["payload"]["body"], "macro hi");
+
+        let status = call_tool(&socket, 8, "status", json!({ "agent": "bob", "limit": 10 }));
+        let status_body = tool_body(&status);
+        assert_eq!(status_body["pending"][0]["payload"]["body"], "macro hi");
+
+        let drain = call_tool(&socket, 9, "drain", json!({ "agent": "bob" }));
+        let drain_body = tool_body(&drain);
+        assert_eq!(drain_body["agent"], "bob");
+        assert_eq!(drain_body["acked"].as_array().expect("acked").len(), 1);
+
+        let status_after = call_tool(&socket, 10, "status", json!({ "agent": "bob" }));
+        assert!(
+            tool_body(&status_after)["pending"]
+                .as_array()
+                .expect("pending")
+                .is_empty(),
+            "mailbox should be drained after macro drain"
+        );
     }
 
     #[test]

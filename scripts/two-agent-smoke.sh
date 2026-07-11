@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN="${AERIAL_BIN:-aerial}"
 mkdir -p "${ROOT}/target"
 DATA_DIR="$(mktemp -d "${ROOT}/target/aerial-smoke.XXXXXX")"
 DAEMON_PID=""
@@ -17,9 +18,12 @@ trap cleanup EXIT
 
 cd "${ROOT}"
 
-cargo build --quiet
+if ! command -v "${BIN}" >/dev/null 2>&1 && [[ ! -x "${BIN}" ]]; then
+  echo "aerial binary not found. Install aerial-local or set AERIAL_BIN=/path/to/aerial." >&2
+  exit 1
+fi
 
-./target/debug/aerial serve --data-dir "${DATA_DIR}" &
+"${BIN}" serve --data-dir "${DATA_DIR}" &
 DAEMON_PID="$!"
 
 for _ in {1..50}; do
@@ -36,16 +40,16 @@ fi
 
 SOCKET="${DATA_DIR}/aerial.sock"
 
-./target/debug/aerial register --socket "${SOCKET}" engineer >/dev/null
-./target/debug/aerial register --socket "${SOCKET}" researcher >/dev/null
+"${BIN}" register --socket "${SOCKET}" engineer >/dev/null
+"${BIN}" register --socket "${SOCKET}" researcher >/dev/null
 
-./target/debug/aerial tell \
+"${BIN}" tell \
   --socket "${SOCKET}" \
   --from engineer \
   --to researcher \
   --body "Agent 2 smoke test: please confirm mailbox delivery." >/dev/null
 
-INBOX="$(./target/debug/aerial inbox --socket "${SOCKET}" researcher)"
+INBOX="$("${BIN}" inbox --socket "${SOCKET}" researcher)"
 ENVELOPE_ID="$(printf '%s\n' "${INBOX}" | sed -n 's/.*"id": "\([^"]*\)".*/\1/p' | head -n 1)"
 
 if [[ -z "${ENVELOPE_ID}" ]]; then
@@ -54,13 +58,13 @@ if [[ -z "${ENVELOPE_ID}" ]]; then
   exit 1
 fi
 
-./target/debug/aerial done --socket "${SOCKET}" --agent researcher "${ENVELOPE_ID}" >/dev/null
+"${BIN}" done --socket "${SOCKET}" --agent researcher "${ENVELOPE_ID}" >/dev/null
 
-PENDING_AFTER_ACK="$(./target/debug/aerial inbox --socket "${SOCKET}" researcher)"
+PENDING_AFTER_ACK="$("${BIN}" inbox --socket "${SOCKET}" researcher)"
 if ! printf '%s\n' "${PENDING_AFTER_ACK}" | grep -q '"envelopes": \[\]'; then
   echo "expected empty mailbox after ack, got:" >&2
   printf '%s\n' "${PENDING_AFTER_ACK}" >&2
   exit 1
 fi
 
-./target/debug/aerial history --socket "${SOCKET}" --limit 5
+"${BIN}" history --socket "${SOCKET}" --limit 5

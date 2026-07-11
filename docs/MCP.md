@@ -26,7 +26,7 @@ storage.
 
 ## Tools
 
-The five tools map 1:1 onto the daemon protocol:
+Primitive tools map 1:1 onto the daemon protocol:
 
 | Tool | Arguments | Daemon action |
 |------|-----------|---------------|
@@ -35,6 +35,15 @@ The five tools map 1:1 onto the daemon protocol:
 | `inbox` | `agent` | List pending (unacknowledged) messages. |
 | `done` | `agent`, `id` | Acknowledge an envelope by UUID. |
 | `history` | `limit?` | Show recent sent-message history. |
+
+Macro tools bundle common Aerial flows while still dispatching only to the
+running daemon:
+
+| Tool | Arguments | Flow |
+|------|-----------|------|
+| `status` | `agent?`, `limit?` | Return an optional agent inbox plus recent history. |
+| `drain` | `agent` | Acknowledge every pending message for an agent. |
+| `exchange` | `from`, `to`, `body`, `in_reply_to?`, `limit?` | Register both names, send a message, then return the recipient inbox and recent history. |
 
 Each call returns the daemon's JSON response as MCP text content. Tool-level
 failures (bad arguments, a daemon error, or an unknown tool) come back as a
@@ -67,10 +76,12 @@ request; notifications get none):
 
 ```text
 -> {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}
-<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.3.0"}}}
+<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.4.0"}}}
 -> {"jsonrpc":"2.0","method":"notifications/initialized"}
 -> {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"register","arguments":{"name":"alice"}}}
 <- {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{ \"status\": \"registered\", ... }"}],"isError":false}}
 -> {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"tell","arguments":{"from":"alice","to":"bob","body":"hi bob"}}}
 <- {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{ \"status\": \"sent\", ... }"}],"isError":false}}
+-> {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"exchange","arguments":{"from":"alice","to":"bob","body":"macro hello","limit":5}}}
+<- {"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{ \"from\": \"alice\", ... }"}],"isError":false}}
 ```
