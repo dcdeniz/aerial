@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use aerial::daemon;
-use aerial::{Daemon, DaemonRequest, DaemonResponse, Mailbox, WatchEvent};
+use aerial::{Daemon, DaemonRequest, DaemonResponse, Mailbox, SupervisorOptions, WatchEvent};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use uuid::Uuid;
@@ -105,6 +105,11 @@ enum Command {
         #[arg(long)]
         exec: Option<String>,
     },
+    /// Run an agent supervisor that wakes on mailbox messages.
+    Agent {
+        #[command(subcommand)]
+        command: AgentCommand,
+    },
     /// Append a message to a local mailbox.
     #[command(name = "mailbox-send", hide = true)]
     Send {
@@ -130,6 +135,47 @@ enum Command {
         mailbox: PathBuf,
         /// Envelope UUID to acknowledge.
         id: Uuid,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum AgentCommand {
+    /// Run an arbitrary command for each message and ack on successful exit.
+    Exec {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name to supervise.
+        agent: String,
+        /// Exit after handling one message.
+        #[arg(long)]
+        once: bool,
+        /// Number of recent history records to expose to the supervisor.
+        #[arg(long, default_value_t = 20)]
+        history_limit: usize,
+        /// Command and arguments to run for each message.
+        #[arg(required = true, trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// Run Codex for each message and ack on successful exit.
+    Codex {
+        /// Path to the daemon socket.
+        #[arg(long, default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Agent name to supervise.
+        agent: String,
+        /// Repository/workspace directory to pass to Codex.
+        #[arg(long, default_value = ".")]
+        cd: PathBuf,
+        /// Codex approval policy.
+        #[arg(long, default_value = "never")]
+        ask_for_approval: String,
+        /// Exit after handling one message.
+        #[arg(long)]
+        once: bool,
+        /// Number of recent history records to include in the Codex prompt.
+        #[arg(long, default_value_t = 20)]
+        history_limit: usize,
     },
 }
 
@@ -202,6 +248,81 @@ fn main() -> anyhow::Result<()> {
                 },
             })?;
         }
+        Command::Agent { command } => match command {
+            AgentCommand::Exec {
+                socket,
+                agent,
+                once,
+                history_limit,
+                command,
+            } => {
+                let options = SupervisorOptions {
+                    socket: socket.clone(),
+                    agent: agent.clone(),
+                    history_limit: Some(history_limit),
+                };
+                daemon::watch_until(&socket, &agent, |event| {
+                    let WatchEvent::Message { id, .. } = event;
+                    eprintln!("aerial: message {id} for {agent}; running agent command");
+                    match aerial::supervisor::run_exec_agent(&options, id, &command) {
+                        Ok(status) if status.success() => {
+                            eprintln!("aerial: message {id} handled and acked");
+                        }
+                        Ok(status) => {
+                            eprintln!(
+                                "aerial: agent command exited with {status}; message {id} left pending"
+                            );
+                        }
+                        Err(error) => {
+                            eprintln!("aerial: agent command error: {error}");
+                        }
+                    }
+                    !once
+                })?;
+            }
+            AgentCommand::Codex {
+                socket,
+                agent,
+                cd,
+                ask_for_approval,
+                once,
+                history_limit,
+            } => {
+                daemon::watch_until(&socket, &agent, |event| {
+                    let WatchEvent::Message { id, .. } = event;
+                    eprintln!("aerial: message {id} for {agent}; running codex");
+                    let command = aerial::supervisor::codex_command(
+                        &socket,
+                        &agent,
+                        id,
+                        &cd,
+                        &ask_for_approval,
+                        Some(history_limit),
+                    );
+                    match command.and_then(|command| {
+                        let options = SupervisorOptions {
+                            socket: socket.clone(),
+                            agent: agent.clone(),
+                            history_limit: Some(history_limit),
+                        };
+                        aerial::supervisor::run_exec_agent(&options, id, &command)
+                    }) {
+                        Ok(status) if status.success() => {
+                            eprintln!("aerial: message {id} handled by codex and acked");
+                        }
+                        Ok(status) => {
+                            eprintln!(
+                                "aerial: codex exited with {status}; message {id} left pending"
+                            );
+                        }
+                        Err(error) => {
+                            eprintln!("aerial: codex supervisor error: {error}");
+                        }
+                    }
+                    !once
+                })?;
+            }
+        },
         Command::Send { mailbox, body } => {
             let mailbox = Mailbox::open(&mailbox).context("open mailbox")?;
             let envelope = aerial::Envelope::new(

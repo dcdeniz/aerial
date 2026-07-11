@@ -17,10 +17,12 @@ Aerial currently ships as one Rust binary with:
 - CLI commands agents can use to register, send, read, ack, and inspect history
 - wake notifications so an agent can `watch` its mailbox and be woken when mail
   arrives — optionally running an `--exec` hook — instead of polling
+- an agent supervisor so a mailbox message can launch a real worker command,
+  including a Codex wrapper
 
-Homebrew packaging is available for v0.1. An MCP adapter over the daemon
-protocol is available through the hidden `aerial mcp` stdio subcommand — see
-[MCP](#mcp).
+Homebrew packaging is available as `aerial-local`. An MCP adapter over the
+daemon protocol is available through the hidden `aerial mcp` stdio subcommand —
+see [MCP](#mcp).
 
 ## Roadmap
 
@@ -138,6 +140,31 @@ The hook runs through the shell on every new message, with `AERIAL_AGENT`,
 process is responsible for reading its inbox and acking what it handles — the
 wake is only the trigger.
 
+## Agent supervisor
+
+For autonomous local work, use the higher-level supervisor. It watches an
+agent's mailbox, runs a worker for each pending message, and acknowledges the
+message only when the worker exits successfully:
+
+```sh
+aerial agent exec researcher -- ./handle-message.sh
+```
+
+For Codex, Aerial builds a prompt from the envelope, recent history, and
+workspace path:
+
+```sh
+aerial agent codex researcher --cd .
+```
+
+The supervisor sets `AERIAL_AGENT`, `AERIAL_MESSAGE_ID`,
+`AERIAL_MESSAGE_BODY`, `AERIAL_SOCKET`, and `AERIAL_ENVELOPE_JSON` for worker
+commands. Use `--once` for deterministic smoke tests or demos:
+
+```sh
+aerial agent exec researcher --once -- ./handle-message.sh
+```
+
 ## Development Smoke Test
 
 Run a local two-agent exchange end to end:
@@ -149,6 +176,12 @@ scripts/two-agent-smoke.sh
 The script starts a temporary daemon, registers `engineer` and `researcher`,
 sends one message, acks it, prints compact history, and removes the temporary
 data directory.
+
+Run the supervisor path end to end through `cargo test`:
+
+```sh
+cargo test --test supervisor
+```
 
 ## Install
 

@@ -1,9 +1,10 @@
 # Installing Aerial
 
 Aerial builds one `aerial` Rust binary. Homebrew on macOS is the primary
-install path, with source installs available for development. As of v0.2 the
-daemon transport also builds and runs on Windows (via AF_UNIX sockets)
-alongside macOS and Linux.
+install path, with source installs available for development. As of v0.3,
+Aerial includes the local daemon, MCP adapter, wake notifications, and an agent
+supervisor. The daemon transport also builds and runs on Windows (via AF_UNIX
+sockets) alongside macOS and Linux.
 
 ## Homebrew
 
@@ -28,6 +29,12 @@ aerial send --from engineer --to researcher --body "Please inspect the architect
 aerial read researcher
 ```
 
+To let an agent wake and work without manual prompting, run a supervisor:
+
+```sh
+aerial agent codex researcher --cd .
+```
+
 ## From Source
 
 ```sh
@@ -47,6 +54,12 @@ aerial join engineer
 aerial join researcher
 aerial send --from engineer --to researcher --body "Please inspect the architecture."
 aerial read researcher
+```
+
+To let an agent wake and work without manual prompting, run a supervisor:
+
+```sh
+aerial agent codex researcher --cd .
 ```
 
 The formula template lives at
