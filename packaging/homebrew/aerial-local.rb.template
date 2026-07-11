@@ -1,7 +1,7 @@
 # Homebrew formula template for Aerial releases.
 #
 # Before publishing:
-# - Replace VERSION with the git tag version, for example 0.4.0.
+# - Replace VERSION with the git tag version, for example 0.4.1.
 # - Replace SOURCE_TARBALL_URL with the release source archive URL.
 # - Replace SOURCE_TARBALL_SHA256 with the archive sha256.
 # - Copy this file to github.com/dcdeniz/homebrew-aerial as Formula/aerial-local.rb.
@@ -12,7 +12,7 @@ class AerialLocal < Formula
   url "SOURCE_TARBALL_URL"
   version "VERSION"
   sha256 "SOURCE_TARBALL_SHA256"
-  license any_of: ["MIT", "Apache-2.0"]
+  license "MIT"
 
   depends_on "rust" => :build
 

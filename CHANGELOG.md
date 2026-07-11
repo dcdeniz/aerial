@@ -3,6 +3,15 @@
 All notable changes to Aerial are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [0.4.1] - 2026-07-11
+
+Patch release for launch polish.
+
+### Changed
+- Switched project licensing to MIT only.
+- Updated the landing page to use the provided Aerial logo and removed the
+  remaining launch-edition copy/buttons from the hero.
+
 ## [0.4.0] - 2026-07-11
 
 Fourth development release: common Aerial workflows are now first-class CLI and
