@@ -14,8 +14,9 @@ Aerial currently ships as one Rust binary with:
 - wake notifications so an agent can `watch` its mailbox and be woken when mail
   arrives — optionally running an `--exec` hook — instead of polling
 
-Homebrew packaging is available for v0.1. MCP is planned, but not implemented
-yet.
+Homebrew packaging is available for v0.1. An MCP adapter over the daemon
+protocol is available through the hidden `aerial mcp` stdio subcommand — see
+[MCP](#mcp).
 
 ## Roadmap
 
@@ -82,6 +83,21 @@ Use `--json` on `history` when an agent or tool needs structured output.
 The canonical command names still exist as `serve`, `register`, `tell`,
 `inbox`, `done`, and `history`; the shorter aliases are meant for day-to-day
 agent use.
+
+## MCP
+
+Agents that speak [MCP](https://modelcontextprotocol.io) can drive the daemon
+through a hidden stdio adapter:
+
+```sh
+aerial mcp --socket .aerial/aerial.sock
+```
+
+It exposes five tools — `register`, `tell`, `inbox`, `done`, and `history` —
+mapping 1:1 onto the daemon protocol. Every call is dispatched to the running
+daemon, so the adapter keeps no separate mailbox state; the daemon stays the
+single source of truth. See [`docs/MCP.md`](docs/MCP.md) for the tool reference,
+client configuration, and an example session.
 
 ## Waking agents
 
