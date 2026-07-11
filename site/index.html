@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aerial - bridge the agentic gap</title>
+<title>Aerial</title>
 <style>
   :root {
     --bg-top: #e2e8ec;
@@ -87,10 +87,11 @@
     text-decoration: none;
   }
 
-  .brand svg {
+  .brand-logo {
     width: 31px;
     height: 31px;
     flex: 0 0 auto;
+    display: block;
   }
 
   .brand-word {
@@ -149,7 +150,8 @@
   .title-logo {
     width: clamp(60px, 8vw, 88px);
     height: clamp(60px, 8vw, 88px);
-    color: var(--ink);
+    object-fit: contain;
+    display: block;
     margin-bottom: 10px;
   }
 
@@ -157,13 +159,6 @@
     font-size: clamp(3.1rem, 9vw, 5.9rem);
     line-height: 0.92;
     font-weight: 700;
-  }
-
-  .tagline {
-    margin-top: 12px;
-    color: var(--muted);
-    font-size: clamp(1rem, 2.2vw, 1.35rem);
-    font-style: italic;
   }
 
   .summary {
@@ -180,13 +175,6 @@
     font-family: "Courier New", Courier, monospace;
     font-size: clamp(1.08rem, 2vw, 1.35rem);
     font-weight: 700;
-  }
-
-  .cta-row {
-    margin-top: 24px;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
   }
 
   .btn--ghost {
@@ -294,7 +282,7 @@
       padding: 10px 0;
     }
     .brand-word { font-size: 1.22rem; }
-    .brand svg { width: 27px; height: 27px; }
+    .brand-logo { width: 27px; height: 27px; }
     .site-nav { gap: 8px; }
     .nav-button { min-height: 34px; padding: 7px 12px; }
     main { align-items: start; padding: 16px 12px 20px; }
@@ -302,7 +290,6 @@
     .hero { text-align: center; }
     .title-logo { margin-left: auto; margin-right: auto; }
     .summary { margin-left: auto; margin-right: auto; }
-    .cta-row { justify-content: center; }
     .feature-grid { grid-template-columns: 1fr; }
   }
 
@@ -310,7 +297,6 @@
     .title-logo { width: 58px; height: 58px; }
     .title-word { font-size: 4.3rem; }
     .summary { margin-top: 12px; line-height: 1.42; }
-    .cta-row { margin-top: 16px; }
     .capabilities { padding: 22px; }
     .feature-grid { margin-top: 14px; }
     .feature-card { padding: 13px; }
@@ -325,15 +311,7 @@
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="https://github.com/dcdeniz/aerial" aria-label="Aerial on GitHub">
-        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
-          <line x1="25" y1="99" x2="25" y2="92"></line>
-          <line x1="25" y1="92" x2="88" y2="12"></line>
-          <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
-          <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
-          <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
-          <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
-          <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
-        </svg>
+        <img class="brand-logo" src="aerial.svg" alt="" aria-hidden="true">
         <span class="brand-word">aerial<span class="dot">.</span></span>
       </a>
       <nav class="site-nav" aria-label="Primary">
@@ -346,27 +324,13 @@
   <main id="main">
     <div class="one-pager">
       <section class="hero" aria-labelledby="title">
-        <svg class="title-logo" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" aria-hidden="true">
-          <line x1="25" y1="99" x2="25" y2="92"></line>
-          <line x1="25" y1="92" x2="88" y2="12"></line>
-          <line x1="47.8" y1="90.5" x2="21.1" y2="69.5"></line>
-          <line x1="58.1" y1="72.7" x2="36.1" y2="55.3"></line>
-          <line x1="68.3" y1="54.8" x2="51.0" y2="41.2"></line>
-          <line x1="76.7" y1="39.4" x2="64.1" y2="29.5"></line>
-          <line x1="84.4" y1="24.7" x2="76.5" y2="18.5"></line>
-        </svg>
+        <img class="title-logo" src="aerial.svg" alt="" aria-hidden="true">
         <h1 class="title-word" id="title">aerial<span class="dot">.</span></h1>
-        <p class="tagline">bridge the agentic gap.</p>
         <p class="positioning">DIY agent orchestration</p>
         <p class="summary">Aerial v0.4.0 is a single Rust binary for local agent-to-agent messaging: a daemon, durable mailboxes, flow macros, an agent supervisor, and an MCP adapter without a broker, database, or cloud account.</p>
-        <div class="cta-row">
-          <a class="btn" href="https://github.com/dcdeniz/aerial">GitHub</a>
-          <a class="btn btn--ghost" href="mailto:deniz@neat.is">Contact</a>
-        </div>
       </section>
 
       <section class="capabilities" aria-labelledby="capabilities-title">
-        <p class="eyebrow">02 - HN launch edition</p>
         <h2 id="capabilities-title">Local coordination for agents you already run</h2>
         <div class="feature-grid">
           <div class="feature-card">
