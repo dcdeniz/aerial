@@ -1,0 +1,40 @@
+name: Homebrew
+
+on:
+  pull_request:
+    paths:
+      - packaging/homebrew/**
+      - .github/workflows/homebrew.yml
+  push:
+    branches:
+      - main
+    paths:
+      - packaging/homebrew/**
+      - .github/workflows/homebrew.yml
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formula:
+    name: Audit published formula
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Tap Aerial
+        run: brew tap dcdeniz/aerial
+
+      - name: Trust tap
+        run: brew trust dcdeniz/aerial
+
+      - name: Audit formula
+        run: brew audit --formula dcdeniz/aerial/aerial-local
+
+      - name: Fetch source archive
+        run: brew fetch --formula dcdeniz/aerial/aerial-local

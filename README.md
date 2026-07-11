@@ -1,5 +1,9 @@
 # Aerial
 
+[![CI](https://github.com/dcdeniz/aerial/actions/workflows/ci.yml/badge.svg)](https://github.com/dcdeniz/aerial/actions/workflows/ci.yml)
+[![Homebrew](https://github.com/dcdeniz/aerial/actions/workflows/homebrew.yml/badge.svg)](https://github.com/dcdeniz/aerial/actions/workflows/homebrew.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
+
 A single Rust binary for AI agent-to-agent messaging: peer-to-peer, durable,
 and resumable without requiring Kafka, Redis, Postgres, or a cloud account.
 
