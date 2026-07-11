@@ -30,7 +30,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages
           git worktree add /tmp/aerial-gh-pages origin/gh-pages
-          rsync -a --delete site/ /tmp/aerial-gh-pages/
+          rsync -a --delete --exclude .git site/ /tmp/aerial-gh-pages/
           cd /tmp/aerial-gh-pages
           if git diff --quiet; then
             echo "gh-pages already matches site/"
