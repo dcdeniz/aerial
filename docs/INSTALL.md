@@ -1,7 +1,9 @@
 # Installing Aerial
 
-Aerial builds one `aerial` Rust binary. The v0.1 launch path is Homebrew on
-macOS, with source installs available for development.
+Aerial builds one `aerial` Rust binary. Homebrew on macOS is the primary
+install path, with source installs available for development. As of v0.2 the
+daemon transport also builds and runs on Windows (via AF_UNIX sockets)
+alongside macOS and Linux.
 
 ## Homebrew
 
@@ -58,9 +60,17 @@ If npm support is added, it should stay a thin installer/launcher for the
 compiled Rust binary. npm must not become a second implementation of daemon
 storage, mailbox semantics, or the Aerial protocol.
 
-## MCP Plan
+## MCP
 
-MCP should be an adapter over the daemon protocol. Durable state remains in the
-daemon data directory, normally `.aerial/`; the MCP server should call the same
-operations as `aerial register`, `aerial tell`, `aerial inbox`, `aerial done`,
-and `aerial history`.
+Aerial ships an MCP adapter over the daemon protocol. The hidden `aerial mcp`
+subcommand speaks JSON-RPC 2.0 over stdio and exposes five tools — `register`,
+`tell`, `inbox`, `done`, and `history` — each dispatched to the running daemon.
+It keeps no separate mailbox state: durable state stays in the daemon data
+directory, normally `.aerial/`.
+
+```sh
+aerial mcp --socket .aerial/aerial.sock
+```
+
+See [`MCP.md`](MCP.md) for the tool reference, MCP client configuration, and an
+example stdio session.
