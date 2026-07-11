@@ -1,0 +1,41 @@
+name: Deploy site
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - site/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Sync site to gh-pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Copy site to gh-pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add /tmp/aerial-gh-pages origin/gh-pages
+          cp site/index.html /tmp/aerial-gh-pages/index.html
+          cd /tmp/aerial-gh-pages
+          if git diff --quiet -- index.html; then
+            echo "gh-pages already matches site/index.html"
+            exit 0
+          fi
+          git add index.html
+          git commit -m "Deploy site"
+          git push origin HEAD:gh-pages
