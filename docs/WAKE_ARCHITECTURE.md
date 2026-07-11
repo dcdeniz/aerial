@@ -43,6 +43,39 @@ aerial watch agent2 --exec "codex ..."
 The hook runs after a new pending message is appended. The started process is
 responsible for reading its inbox and acknowledging handled envelopes.
 
+## Agent Supervisor
+
+The launch-facing runtime is the supervisor:
+
+```sh
+aerial agent exec agent2 -- ./handle-message.sh
+aerial agent codex agent2 --cd .
+```
+
+The supervisor uses the same watch path, but owns the full handler lifecycle:
+
+```text
+daemon -> durable mailbox -> watch event -> supervisor -> worker command -> ack on success
+```
+
+This is intentionally different from driving an arbitrary already-open
+terminal. Aerial can reliably wake and control processes it owns. For v0.3,
+that means running a fresh worker command per message. A later PTY/tmux runtime
+can make the worker visible in a persistent terminal while preserving the same
+mailbox and ack semantics.
+
+Worker commands receive:
+
+- `AERIAL_AGENT`
+- `AERIAL_MESSAGE_ID`
+- `AERIAL_MESSAGE_BODY`
+- `AERIAL_SOCKET`
+- `AERIAL_ENVELOPE_JSON`
+
+If the worker exits successfully, the supervisor acknowledges the envelope. If
+the worker fails, the envelope remains pending and will be replayed to the next
+watcher.
+
 ## MCP
 
 MCP should adapt the daemon protocol. It should not create separate mailbox

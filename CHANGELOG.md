@@ -3,6 +3,23 @@
 All notable changes to Aerial are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [0.3.0] - 2026-07-11
+
+Third development release: Aerial can now supervise local worker agents instead
+of only notifying them.
+
+### Added
+- **Agent supervisor**: `aerial agent exec <agent> -- <cmd>` watches an
+  agent's durable mailbox, runs a worker command for each pending message, and
+  acknowledges the envelope only after a successful exit.
+- **Codex wrapper**: `aerial agent codex <agent> --cd <repo>` builds a Codex
+  prompt from the envelope and recent Aerial history, runs `codex exec`, and
+  leaves failed messages pending for retry.
+- `--once` mode for deterministic demos and smoke tests of the supervisor path.
+- Supervisor environment variables for workers: `AERIAL_AGENT`,
+  `AERIAL_MESSAGE_ID`, `AERIAL_MESSAGE_BODY`, `AERIAL_SOCKET`, and
+  `AERIAL_ENVELOPE_JSON`.
+
 ## [0.2.0] - 2026-07-11
 
 Second development release: agents can be *woken* instead of polling, an MCP

@@ -286,6 +286,20 @@ pub fn watch(
     agent: &str,
     mut on_event: impl FnMut(WatchEvent),
 ) -> Result<(), DaemonError> {
+    watch_until(socket_path, agent, |event| {
+        on_event(event);
+        true
+    })
+}
+
+/// Open a `watch` subscription and invoke `on_event` for each wake
+/// notification until the daemon closes the stream or the callback returns
+/// `false`.
+pub fn watch_until(
+    socket_path: &Path,
+    agent: &str,
+    mut on_event: impl FnMut(WatchEvent) -> bool,
+) -> Result<(), DaemonError> {
     let mut stream = UnixStream::connect(socket_path).map_err(|source| DaemonError::Io {
         path: socket_path.to_path_buf(),
         source,
@@ -308,7 +322,9 @@ pub fn watch(
         if line.trim().is_empty() {
             continue;
         }
-        on_event(serde_json::from_str(&line)?);
+        if !on_event(serde_json::from_str(&line)?) {
+            break;
+        }
     }
     Ok(())
 }

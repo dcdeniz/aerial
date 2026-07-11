@@ -67,7 +67,7 @@ request; notifications get none):
 
 ```text
 -> {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}
-<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.1.0"}}}
+<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.3.0"}}}
 -> {"jsonrpc":"2.0","method":"notifications/initialized"}
 -> {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"register","arguments":{"name":"alice"}}}
 <- {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{ \"status\": \"registered\", ... }"}],"isError":false}}
