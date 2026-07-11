@@ -3,7 +3,7 @@
 All notable changes to Aerial are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-07-11
 
 Second development release: agents can be *woken* instead of polling, an MCP
 adapter exposes the daemon to MCP clients, and the daemon builds and runs on
