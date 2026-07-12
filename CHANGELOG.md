@@ -3,6 +3,16 @@
 All notable changes to Aerial are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+- A Windows npm package, `aerial-local`, which bundles the native Rust binary
+  behind a thin Node.js launcher.
+- An installed-package smoke test covering daemon messaging, MCP stdio, and
+  supervisor execution on Windows.
+- GitHub Actions automation for building, validating, packing, and publishing
+  the Windows npm package.
+
 ## [0.4.1] - 2026-07-11
 
 Patch release for launch polish.

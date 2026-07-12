@@ -1,0 +1,102 @@
+name: npm
+
+on:
+  pull_request:
+    paths:
+      - npm/**
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/npm.yml
+  push:
+    branches:
+      - main
+    paths:
+      - npm/**
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/npm.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  windows-package:
+    name: Windows npm package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify release versions
+        shell: pwsh
+        run: |
+          $cargoVersion = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"$').Matches[0].Groups[1].Value
+          $npmVersion = (Get-Content npm/package.json | ConvertFrom-Json).version
+          if ($cargoVersion -ne $npmVersion) { throw "Cargo version $cargoVersion does not match npm version $npmVersion" }
+          if ('${{ github.event_name }}' -eq 'release' -and '${{ github.event.release.tag_name }}' -ne "v$cargoVersion") {
+            throw "Release tag ${{ github.event.release.tag_name }} does not match v$cargoVersion"
+          }
+
+      - name: Test Rust implementation
+        run: cargo test --all-features --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Stage native binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force npm/vendor | Out-Null
+          Copy-Item target/release/aerial.exe npm/vendor/aerial.exe
+
+      - name: Install npm package metadata
+        working-directory: npm
+        run: npm ci
+
+      - name: Test packaged command
+        working-directory: npm
+        run: npm test
+
+      - name: Pack npm tarball
+        working-directory: npm
+        run: npm pack
+
+      - name: Test installed npm tarball
+        working-directory: npm
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP 'aerial-npm-install'
+          npm install --prefix $installDir (Get-ChildItem aerial-local-*.tgz).FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:AERIAL_TEST_LAUNCHER = Join-Path $installDir 'node_modules/aerial-local/bin/aerial.js'
+          node test/smoke.mjs
+
+      - name: Upload npm tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: aerial-local-npm
+          path: npm/aerial-local-*.tgz
+
+      - name: Publish npm package
+        if: github.event_name == 'release'
+        working-directory: npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
