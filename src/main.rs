@@ -9,6 +9,7 @@ use uuid::Uuid;
 #[derive(Debug, Parser)]
 #[command(name = "aerial")]
 #[command(about = "Durable, resumable messaging for local AI agents.")]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Command,

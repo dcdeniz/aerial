@@ -1,6 +1,6 @@
 [package]
 name = "aerial"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 description = "Peer-to-peer, durable, resumable messaging for AI agents."
 license = "MIT"

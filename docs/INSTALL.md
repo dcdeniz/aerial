@@ -1,10 +1,27 @@
 # Installing Aerial
 
-Aerial builds one `aerial` Rust binary. Homebrew on macOS is the primary
-install path, with source installs available for development. As of v0.4,
+Aerial builds one `aerial` Rust binary. npm on 64-bit Windows and Homebrew on
+macOS are the supported package-manager install paths, with source installs
+available for development. As of v0.4,
 Aerial includes the local daemon, MCP adapter, wake notifications, CLI/MCP flow
 macros, and an agent supervisor. The daemon transport also builds and runs on
 Windows (via AF_UNIX sockets) alongside macOS and Linux.
+
+## npm on Windows
+
+The `aerial-local` npm package bundles the compiled Windows executable. npm is
+only the installer and launcher: daemon storage, mailbox semantics, and the
+protocol remain implemented by the Rust binary.
+
+```powershell
+npm install --global aerial-local
+aerial --version
+aerial up
+```
+
+The npm package currently supports 64-bit Windows (`win32-x64`). It does not
+download an executable during installation, so installs remain reproducible
+and do not depend on lifecycle scripts.
 
 ## Homebrew
 
@@ -63,11 +80,12 @@ The formula template lives at
 Published tap formulas live in `dcdeniz/homebrew-aerial` as
 `Formula/aerial-local.rb`.
 
-## npm Plan
+## npm release
 
-If npm support is added, it should stay a thin installer/launcher for the
-compiled Rust binary. npm must not become a second implementation of daemon
-storage, mailbox semantics, or the Aerial protocol.
+The package source lives under [`npm/`](../npm/). The npm workflow compiles the
+locked Rust project on Windows, copies `aerial.exe` into the package, runs the
+installed-style smoke test, and publishes releases from GitHub Actions. The
+version in `npm/package.json` must match `Cargo.toml` and the release tag.
 
 ## MCP
 

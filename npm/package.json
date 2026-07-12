@@ -1,0 +1,38 @@
+{
+  "name": "aerial-local",
+  "version": "0.4.2",
+  "description": "Peer-to-peer, durable, resumable messaging for AI agents.",
+  "license": "MIT",
+  "author": "dcdeniz",
+  "homepage": "https://github.com/dcdeniz/aerial#readme",
+  "bugs": {
+    "url": "https://github.com/dcdeniz/aerial/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dcdeniz/aerial.git",
+    "directory": "npm"
+  },
+  "type": "module",
+  "bin": {
+    "aerial": "bin/aerial.js"
+  },
+  "files": [
+    "bin/aerial.js",
+    "vendor/aerial.exe",
+    "README.md"
+  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs",
+    "prepack": "node scripts/validate-package.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": ["agents", "ai", "mcp", "messaging", "cli"]
+}

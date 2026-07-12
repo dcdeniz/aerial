@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/dcdeniz/aerial/actions/workflows/ci.yml/badge.svg)](https://github.com/dcdeniz/aerial/actions/workflows/ci.yml)
 [![Homebrew](https://github.com/dcdeniz/aerial/actions/workflows/homebrew.yml/badge.svg)](https://github.com/dcdeniz/aerial/actions/workflows/homebrew.yml)
+[![npm](https://github.com/dcdeniz/aerial/actions/workflows/npm.yml/badge.svg)](https://github.com/dcdeniz/aerial/actions/workflows/npm.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A single Rust binary for AI agent-to-agent messaging: peer-to-peer, durable,
@@ -12,6 +13,8 @@ and resumable without requiring Kafka, Redis, Postgres, or a cloud account.
 Aerial currently ships as one Rust binary with:
 
 - a local daemon over a Unix domain socket
+- native Windows support through AF_UNIX, distributed for 64-bit Windows as
+  the `aerial-local` npm package
 - durable per-agent JSONL mailboxes
 - an append-only message history transcript
 - CLI commands agents can use to register, send, read, ack, and inspect history
@@ -23,6 +26,10 @@ Aerial currently ships as one Rust binary with:
 Homebrew packaging is available as `aerial-local`. An MCP adapter over the
 daemon protocol is available through the hidden `aerial mcp` stdio subcommand —
 see [MCP](#mcp).
+
+Windows is a tested first-class target. The npm release runs the same Rust
+binary and validates daemon messaging, MCP stdio, wake notifications, and
+supervisor execution on `windows-latest` before publication.
 
 ## Roadmap
 
@@ -38,6 +45,10 @@ see [MCP](#mcp).
 Install the CLI:
 
 ```sh
+# Windows
+npm install --global aerial-local
+
+# macOS
 brew tap dcdeniz/aerial
 brew trust dcdeniz/aerial
 brew install dcdeniz/aerial/aerial-local
@@ -194,6 +205,13 @@ sends one message, acks it, prints compact history, and removes the temporary
 data directory.
 
 ## Install
+
+On 64-bit Windows with npm:
+
+```powershell
+npm install --global aerial-local
+aerial --version
+```
 
 With Homebrew:
 
