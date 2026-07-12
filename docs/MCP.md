@@ -31,10 +31,11 @@ Primitive tools map 1:1 onto the daemon protocol:
 | Tool | Arguments | Daemon action |
 |------|-----------|---------------|
 | `register` | `name` | Register an agent name. |
-| `tell` | `from`, `to`, `body`, `in_reply_to?` | Send a message; `in_reply_to` is a parent envelope UUID for lineage. |
+| `tell` | `from`, `to`, `body`, `in_reply_to?`, `create?` | Send to a registered recipient; `create: true` deliberately creates an unknown recipient. |
 | `inbox` | `agent` | List pending (unacknowledged) messages. |
 | `done` | `agent`, `id` | Acknowledge an envelope by UUID. |
 | `history` | `limit?` | Show recent sent-message history. |
+| `agents` | none | List known names, ids, pending counts, and last-seen times. |
 
 Macro tools bundle common Aerial flows while still dispatching only to the
 running daemon:
@@ -49,6 +50,10 @@ Each call returns the daemon's JSON response as MCP text content. Tool-level
 failures (bad arguments, a daemon error, or an unknown tool) come back as a
 result with `isError: true`; malformed frames or unknown methods use JSON-RPC
 error objects.
+
+New envelopes include `from_name` and `to_name` alongside stable UUID-backed
+`from` and `to` identifiers. Mailbox records written before v0.5.0 remain
+readable; their optional name fields may be absent.
 
 ## Client configuration
 
@@ -76,7 +81,7 @@ request; notifications get none):
 
 ```text
 -> {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}
-<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.4.2"}}}
+<- {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"aerial","version":"0.5.0"}}}
 -> {"jsonrpc":"2.0","method":"notifications/initialized"}
 -> {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"register","arguments":{"name":"alice"}}}
 <- {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{ \"status\": \"registered\", ... }"}],"isError":false}}

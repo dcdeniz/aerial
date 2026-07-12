@@ -16,7 +16,7 @@ pub enum SupervisorError {
     #[error("message {id} is not pending for agent {agent}")]
     MissingMessage { agent: String, id: Uuid },
     #[error("unexpected daemon response: {0:?}")]
-    UnexpectedResponse(DaemonResponse),
+    UnexpectedResponse(Box<DaemonResponse>),
     #[error("failed to encode envelope: {0}")]
     Encode(#[from] serde_json::Error),
     #[error("failed to run agent command {program}: {source}")]
@@ -74,7 +74,7 @@ pub fn load_message(
                 agent: agent.to_owned(),
                 id,
             })?,
-        other => return Err(SupervisorError::UnexpectedResponse(other)),
+        other => return Err(SupervisorError::UnexpectedResponse(Box::new(other))),
     };
 
     let history = match daemon::request(
@@ -84,7 +84,7 @@ pub fn load_message(
         },
     )? {
         DaemonResponse::History { messages } => messages,
-        other => return Err(SupervisorError::UnexpectedResponse(other)),
+        other => return Err(SupervisorError::UnexpectedResponse(Box::new(other))),
     };
 
     Ok(AgentMessage {
@@ -185,7 +185,7 @@ fn ack(socket: &Path, agent: &str, id: Uuid) -> Result<(), SupervisorError> {
         },
     )? {
         DaemonResponse::Acked { .. } => Ok(()),
-        other => Err(SupervisorError::UnexpectedResponse(other)),
+        other => Err(SupervisorError::UnexpectedResponse(Box::new(other))),
     }
 }
 

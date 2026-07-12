@@ -88,12 +88,19 @@ struct Envelope {
     id: Uuid,
     from: AgentId,
     to: AgentId,
+    from_name: Option<String>,
+    to_name: Option<String>,
     in_reply_to: Option<Uuid>,
     kind: MessageKind,       // Message, Ack, Resume, TaskClaim
     payload: serde_json::Value,
     sent_at: u64,            // unix millis, set by the daemon, not the sender
 }
 ```
+
+Names are included for agent-facing readability while UUID-backed ids remain
+the stable protocol identity. A normal send requires a known recipient name so
+typos fail early; callers may explicitly opt into creating a name. The daemon
+restores known identities from durable history and mailbox files on restart.
 
 `in_reply_to` gives the same lineage tracking that made `parent_tool_use_id`
 useful in tool-call chains — you can always reconstruct a conversation as a

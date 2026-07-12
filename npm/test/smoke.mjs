@@ -103,6 +103,41 @@ try {
   if (exchange.pending.length !== 1) {
     throw new Error("exchange did not create one pending message");
   }
+  if (exchange.sent.from_name !== "engineer" || exchange.sent.to_name !== "researcher") {
+    throw new Error("sent envelope did not include agent names");
+  }
+  const humanHistory = run(["history", "--socket", socket, "--limit", "1"]);
+  if (!humanHistory.includes("Agent engineer -> Agent researcher")) {
+    throw new Error(`history did not render agent names: ${humanHistory}`);
+  }
+
+  const environmentHistory = JSON.parse(run(["history", "--limit", "1", "--json"], {
+    env: { ...process.env, AERIAL_SOCKET: socket }
+  }));
+  if (environmentHistory.messages.length !== 1) {
+    throw new Error("AERIAL_SOCKET did not select the running daemon");
+  }
+
+  const agents = JSON.parse(run(["agents", "--socket", socket, "--json"]));
+  if (!agents.agents.some((agent) => agent.name === "researcher" && agent.pending === 1)) {
+    throw new Error("agent discovery did not report the pending recipient");
+  }
+
+  const unknown = spawnSync(command[0], [
+    ...command.slice(1), "tell", "--socket", socket, "--from", "engineer", "--to", "ghost",
+    "--body", "should fail"
+  ], { encoding: "utf8", env: process.env });
+  if (unknown.status === 0 || !unknown.stderr.includes("unknown recipient `ghost`")) {
+    throw new Error("unknown recipient did not fail with an actionable error");
+  }
+
+  const missingSocket = join(temp, "missing.sock");
+  const unavailable = spawnSync(command[0], [
+    ...command.slice(1), "agents", "--socket", missingSocket
+  ], { encoding: "utf8", env: process.env });
+  if (unavailable.status === 0 || !unavailable.stderr.includes("aerial up --data-dir")) {
+    throw new Error("unavailable daemon error did not include the startup remedy");
+  }
 
   const drained = JSON.parse(run(["drain", "--socket", socket, "researcher", "--json"]));
   if (drained.acked.length !== 1) throw new Error("drain did not ack the pending message");

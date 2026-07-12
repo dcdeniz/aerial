@@ -31,6 +31,22 @@ impl Registry {
         agent
     }
 
+    pub fn restore(
+        &mut self,
+        name: impl Into<String>,
+        id: AgentId,
+        last_seen: u64,
+    ) -> RegisteredAgent {
+        let name = name.into();
+        let agent = RegisteredAgent {
+            id,
+            name: name.clone(),
+            connected_at: last_seen,
+        };
+        self.by_name.insert(name, agent.clone());
+        agent
+    }
+
     pub fn resolve(&self, name: &str) -> Option<&RegisteredAgent> {
         self.by_name.get(name)
     }
@@ -45,6 +61,12 @@ impl Registry {
 
     pub fn is_empty(&self) -> bool {
         self.by_name.is_empty()
+    }
+
+    pub fn agents(&self) -> Vec<RegisteredAgent> {
+        let mut agents: Vec<_> = self.by_name.values().cloned().collect();
+        agents.sort_by(|left, right| left.name.cmp(&right.name));
+        agents
     }
 }
 

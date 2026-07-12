@@ -48,6 +48,10 @@ pub struct Envelope {
     pub id: Uuid,
     pub from: AgentId,
     pub to: AgentId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_name: Option<String>,
     pub in_reply_to: Option<Uuid>,
     pub kind: MessageKind,
     pub payload: serde_json::Value,
@@ -60,6 +64,8 @@ impl Envelope {
             id: Uuid::new_v4(),
             from,
             to,
+            from_name: None,
+            to_name: None,
             in_reply_to: None,
             kind,
             payload,
@@ -69,6 +75,12 @@ impl Envelope {
 
     pub fn reply_to(mut self, parent: Uuid) -> Self {
         self.in_reply_to = Some(parent);
+        self
+    }
+
+    pub fn with_names(mut self, from: impl Into<String>, to: impl Into<String>) -> Self {
+        self.from_name = Some(from.into());
+        self.to_name = Some(to.into());
         self
     }
 }

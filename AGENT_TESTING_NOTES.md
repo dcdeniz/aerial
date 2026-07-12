@@ -108,4 +108,19 @@ references (a task spec, a diff, an artifact path) rather than prose only.
 ---
 
 _Tested against `aerial-local` 0.4.2 on Windows 11 via npm global install._
+
+## 4. Implementation follow-up
+
+The first remediation pass addresses the two P0 items and the most concrete P1
+and P2 issues:
+
+- envelopes and human summaries carry agent names while retaining stable ids;
+- unknown recipients fail unless the caller explicitly passes `--create`;
+- registered mailbox identities are restored across daemon restarts;
+- `aerial agents` / `who` and the MCP `agents` tool provide discovery;
+- `AERIAL_SOCKET` works across working directories; and
+- connection errors print the exact daemon startup command.
+
+Uniform output modes, automatic daemon startup, a first-class Claude wrapper,
+and structured payloads remain separate design/implementation work.
 </content>

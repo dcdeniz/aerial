@@ -1,13 +1,13 @@
 [package]
 name = "aerial"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2024"
 description = "Peer-to-peer, durable, resumable messaging for AI agents."
 license = "MIT"
 
 [dependencies]
 anyhow = "1.0.98"
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.41", features = ["derive", "env"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"

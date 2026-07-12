@@ -15,6 +15,8 @@ pub enum DaemonRequest {
         to: String,
         body: String,
         in_reply_to: Option<Uuid>,
+        #[serde(default)]
+        create: bool,
     },
     Pending {
         agent: String,
@@ -26,6 +28,7 @@ pub enum DaemonRequest {
     History {
         limit: Option<usize>,
     },
+    Agents,
     Watch {
         agent: String,
     },
@@ -48,5 +51,14 @@ pub enum DaemonResponse {
     Pending { envelopes: Vec<Envelope> },
     Acked { id: Uuid },
     History { messages: Vec<TranscriptMessage> },
+    Agents { agents: Vec<AgentStatus> },
     Error { message: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AgentStatus {
+    pub name: String,
+    pub id: AgentId,
+    pub pending: usize,
+    pub last_seen: u64,
 }

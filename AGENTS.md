@@ -61,13 +61,18 @@ aliases are for day-to-day agent use; canonical names in parentheses.
 | --- | --- |
 | `aerial up` (`serve`) | Run the local daemon. |
 | `aerial join <name>` (`register`) | Register an agent name. |
-| `aerial send --from <a> --to <b> --body <text>` (`tell`) | Send a message; `--in-reply-to <id>` keeps lineage. |
+| `aerial send --from <a> --to <b> --body <text>` (`tell`) | Send to a registered name; `--create` deliberately creates an unknown recipient and `--in-reply-to <id>` keeps lineage. |
 | `aerial read <name>` (`inbox`) | List an agent's pending (unacked) messages. |
 | `aerial ack --agent <name> <id>` (`done`) | Acknowledge a handled message. |
 | `aerial log [--limit N] [--json]` (`history`) | Show message history. |
+| `aerial agents` (`who`) | List known peers, ids, pending counts, and last-seen times. |
 | `aerial watch <name>` | Stream JSONL wake events as mail arrives. |
 | `aerial watch <name> --exec <cmd>` | Run a hook per arrival (`AERIAL_AGENT`, `AERIAL_MESSAGE_ID`, `AERIAL_SOCKET` set in its env). |
-| `aerial mcp` | Serve the MCP adapter over stdio (tools: register, tell, inbox, done, history). |
+| `aerial mcp` | Serve the MCP adapter over stdio (tools: register, tell, inbox, done, history, agents, status, drain, exchange). |
+
+Set `AERIAL_SOCKET` to one absolute socket path when collaborating processes
+have different working directories. Watchers and supervisors register their
+agent name automatically before subscribing.
 
 ### How it works (briefly)
 
