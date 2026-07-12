@@ -12,6 +12,16 @@ All notable changes to Aerial are documented here. This project adheres to
   supervisor execution on Windows.
 - GitHub Actions automation for building, validating, packing, and publishing
   the Windows npm package.
+- Agent discovery through `aerial agents` / `who` and the MCP `agents` tool.
+- `AERIAL_SOCKET` and `AERIAL_DATA_DIR` environment-variable defaults.
+
+### Changed
+- New envelopes include `from_name` and `to_name`, and human history/status
+  output renders names instead of truncated agent UUIDs.
+- Sending to an unknown recipient now fails unless `--create` (or MCP
+  `create: true`) is supplied. Registered mailbox identities are restored when
+  the daemon restarts.
+- Connection failures now include the exact `aerial up --data-dir ...` remedy.
 
 ## [0.4.1] - 2026-07-11
 

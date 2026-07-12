@@ -23,6 +23,10 @@ The npm package currently supports 64-bit Windows (`win32-x64`). It does not
 download an executable during installation, so installs remain reproducible
 and do not depend on lifecycle scripts.
 
+For agents launched from different working directories, set `AERIAL_SOCKET` to
+the same absolute socket path in every process. `AERIAL_DATA_DIR` provides the
+matching default for `aerial up`.
+
 ## Homebrew
 
 ```sh

@@ -21,14 +21,14 @@ enum Command {
     #[command(visible_alias = "up")]
     Serve {
         /// Directory for the daemon socket and durable mailboxes.
-        #[arg(long, default_value = ".aerial")]
+        #[arg(long, env = "AERIAL_DATA_DIR", default_value = ".aerial")]
         data_dir: PathBuf,
     },
     /// Register an agent name with a running daemon.
     #[command(visible_alias = "join")]
     Register {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Human-readable agent name.
         name: String,
@@ -37,7 +37,7 @@ enum Command {
     #[command(visible_alias = "send")]
     Tell {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Sender agent name.
         #[arg(long)]
@@ -51,12 +51,15 @@ enum Command {
         /// Optional parent envelope id for lineage tracking.
         #[arg(long)]
         in_reply_to: Option<Uuid>,
+        /// Create the recipient when it has not been registered before.
+        #[arg(long)]
+        create: bool,
     },
     /// List pending messages for an agent through a running daemon.
     #[command(visible_alias = "read")]
     Inbox {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name.
         agent: String,
@@ -65,7 +68,7 @@ enum Command {
     #[command(visible_alias = "ack")]
     Done {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name.
         #[arg(long)]
@@ -77,7 +80,7 @@ enum Command {
     #[command(visible_alias = "log")]
     History {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Number of most recent messages to show.
         #[arg(long)]
@@ -86,10 +89,20 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// List agents known to the daemon.
+    #[command(visible_alias = "who")]
+    Agents {
+        /// Path to the daemon socket.
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
+        socket: PathBuf,
+        /// Print the raw JSON response instead of the compact view.
+        #[arg(long)]
+        json: bool,
+    },
     /// Show mailbox and recent history status in one command.
     Status {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Optional agent name whose pending mailbox should be shown.
         agent: Option<String>,
@@ -103,7 +116,7 @@ enum Command {
     /// Acknowledge every pending message for an agent.
     Drain {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name whose pending mailbox should be acknowledged.
         agent: String,
@@ -114,7 +127,7 @@ enum Command {
     /// Register two agents, send a message, and show the recipient inbox.
     Exchange {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Sender agent name.
         #[arg(long)]
@@ -139,13 +152,13 @@ enum Command {
     #[command(name = "mcp", hide = true)]
     Mcp {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
     },
     /// Stream wake notifications for an agent, or run a hook on each.
     Watch {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name to watch for incoming mail.
         agent: String,
@@ -193,7 +206,7 @@ enum AgentCommand {
     /// Run an arbitrary command for each message and ack on successful exit.
     Exec {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name to supervise.
         agent: String,
@@ -210,7 +223,7 @@ enum AgentCommand {
     /// Run Codex for each message and ack on successful exit.
     Codex {
         /// Path to the daemon socket.
-        #[arg(long, default_value = ".aerial/aerial.sock")]
+        #[arg(long, env = "AERIAL_SOCKET", default_value = ".aerial/aerial.sock")]
         socket: PathBuf,
         /// Agent name to supervise.
         agent: String,
@@ -247,6 +260,7 @@ fn main() -> anyhow::Result<()> {
             to,
             body,
             in_reply_to,
+            create,
         } => {
             print_response(daemon::request(
                 &socket,
@@ -255,6 +269,7 @@ fn main() -> anyhow::Result<()> {
                     to,
                     body,
                     in_reply_to,
+                    create,
                 },
             )?)?;
         }
@@ -274,6 +289,14 @@ fn main() -> anyhow::Result<()> {
                 print_response(response)?;
             } else {
                 print_history(response)?;
+            }
+        }
+        Command::Agents { socket, json } => {
+            let response = daemon::request(&socket, &DaemonRequest::Agents)?;
+            if json {
+                print_response(response)?;
+            } else {
+                print_agents(response)?;
             }
         }
         Command::Status {
@@ -322,13 +345,13 @@ fn main() -> anyhow::Result<()> {
             } else {
                 println!(
                     "Agent {} -> Agent {} \"{}\"",
-                    report.sent.from.short(),
-                    report.sent.to.short(),
+                    report.from,
+                    report.to,
                     body.replace('\n', " ")
                 );
                 println!("Agent {to}: {} pending message(s)", report.pending.len());
                 for envelope in &report.pending {
-                    println!("{}", envelope.id);
+                    println!("{}", render_envelope_summary(envelope));
                 }
                 for message in report.history {
                     println!("{}", message.render_summary());
@@ -343,6 +366,7 @@ fn main() -> anyhow::Result<()> {
             agent,
             exec,
         } => {
+            register_with_daemon(&socket, &agent)?;
             daemon::watch(&socket, &agent, |event| match &exec {
                 Some(command) => {
                     let WatchEvent::Message { agent, id } = &event;
@@ -365,6 +389,7 @@ fn main() -> anyhow::Result<()> {
                 history_limit,
                 command,
             } => {
+                register_with_daemon(&socket, &agent)?;
                 let options = SupervisorOptions {
                     socket: socket.clone(),
                     agent: agent.clone(),
@@ -397,6 +422,7 @@ fn main() -> anyhow::Result<()> {
                 once,
                 history_limit,
             } => {
+                register_with_daemon(&socket, &agent)?;
                 daemon::watch_until(&socket, &agent, |event| {
                     let WatchEvent::Message { id, .. } = event;
                     eprintln!("aerial: message {id} for {agent}; running codex");
@@ -458,6 +484,9 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn print_response(response: DaemonResponse) -> anyhow::Result<()> {
+    if let DaemonResponse::Error { message } = response {
+        anyhow::bail!(message);
+    }
     println!("{}", serde_json::to_string_pretty(&response)?);
     Ok(())
 }
@@ -471,6 +500,22 @@ fn print_history(response: DaemonResponse) -> anyhow::Result<()> {
             Ok(())
         }
         other => print_response(other),
+    }
+}
+
+fn print_agents(response: DaemonResponse) -> anyhow::Result<()> {
+    match response {
+        DaemonResponse::Agents { agents } => {
+            for agent in agents {
+                println!(
+                    "{} ({}) - {} pending - last seen {}",
+                    agent.name, agent.id, agent.pending, agent.last_seen
+                );
+            }
+            Ok(())
+        }
+        DaemonResponse::Error { message } => anyhow::bail!(message),
+        other => anyhow::bail!("unexpected agents response: {other:?}"),
     }
 }
 
@@ -528,7 +573,7 @@ fn print_status_report(report: &StatusReport) -> anyhow::Result<()> {
     if let Some(agent) = &report.agent {
         println!("Agent {agent}: {} pending message(s)", report.pending.len());
         for envelope in &report.pending {
-            println!("{}", envelope.id);
+            println!("{}", render_envelope_summary(envelope));
         }
     }
     for message in &report.history {
@@ -593,6 +638,7 @@ fn exchange_report(
             to: to.to_owned(),
             body: body.to_owned(),
             in_reply_to,
+            create: false,
         },
     )? {
         DaemonResponse::Sent { envelope } => envelope,
@@ -606,6 +652,37 @@ fn exchange_report(
         pending: status.pending,
         history: status.history,
     })
+}
+
+fn render_envelope_summary(envelope: &aerial::Envelope) -> String {
+    let from = envelope
+        .from_name
+        .clone()
+        .unwrap_or_else(|| envelope.from.short());
+    let to = envelope
+        .to_name
+        .clone()
+        .unwrap_or_else(|| envelope.to.short());
+    let body = envelope
+        .payload
+        .get("body")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .replace('\n', " ");
+    format!("{} {from} -> {to} \"{body}\"", envelope.id)
+}
+
+fn register_with_daemon(socket: &Path, agent: &str) -> anyhow::Result<()> {
+    match daemon::request(
+        socket,
+        &DaemonRequest::Register {
+            name: agent.to_owned(),
+        },
+    )? {
+        DaemonResponse::Registered { .. } => Ok(()),
+        DaemonResponse::Error { message } => anyhow::bail!(message),
+        other => anyhow::bail!("unexpected register response: {other:?}"),
+    }
 }
 
 /// Run a wake hook for a single arrived message. The command runs through the

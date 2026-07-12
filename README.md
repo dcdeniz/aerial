@@ -18,6 +18,7 @@ Aerial currently ships as one Rust binary with:
 - durable per-agent JSONL mailboxes
 - an append-only message history transcript
 - CLI commands agents can use to register, send, read, ack, and inspect history
+- name-rich envelopes, strict recipient validation, and `aerial agents` peer discovery
 - wake notifications so an agent can `watch` its mailbox and be woken when mail
   arrives — optionally running an `--exec` hook — instead of polling
 - an agent supervisor so a mailbox message can launch a real worker command,
@@ -73,6 +74,20 @@ Send a message:
 aerial send --from engineer --to researcher --body "Please inspect the architecture."
 ```
 
+Recipients must be registered, which catches misspelled names before mail is
+written to an unread mailbox. Use `--create` only when deliberately creating a
+new recipient:
+
+```sh
+aerial send --from engineer --to new-agent --body "Start here." --create
+```
+
+List known peers and their pending counts:
+
+```sh
+aerial agents
+```
+
 Read the recipient mailbox:
 
 ```sh
@@ -110,6 +125,15 @@ Use `--json` on `history` when an agent or tool needs structured output.
 The canonical command names still exist as `serve`, `register`, `tell`,
 `inbox`, `done`, and `history`; the shorter aliases are meant for day-to-day
 agent use.
+
+Set `AERIAL_SOCKET` once when agents run from different working directories:
+
+```sh
+export AERIAL_SOCKET=/absolute/path/to/.aerial/aerial.sock
+```
+
+PowerShell uses `$env:AERIAL_SOCKET = 'C:\path\to\.aerial\aerial.sock'`.
+An explicit `--socket` always takes precedence.
 
 ## MCP
 

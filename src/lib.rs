@@ -10,7 +10,7 @@ pub mod transcript;
 pub use daemon::{Daemon, DaemonError};
 pub use envelope::{AgentId, Envelope, MessageKind};
 pub use mailbox::{Mailbox, MailboxError};
-pub use protocol::{DaemonRequest, DaemonResponse, WatchEvent};
+pub use protocol::{AgentStatus, DaemonRequest, DaemonResponse, WatchEvent};
 pub use registry::{RegisteredAgent, Registry};
 pub use supervisor::{AgentMessage, SupervisorError, SupervisorOptions};
 pub use transcript::{Transcript, TranscriptError, TranscriptMessage};

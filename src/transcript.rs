@@ -18,8 +18,8 @@ impl TranscriptMessage {
     pub fn render_summary(&self) -> String {
         format!(
             "Agent {} -> Agent {} \"{}\"",
-            self.envelope.from.short(),
-            self.envelope.to.short(),
+            self.from_name,
+            self.to_name,
             summarize_body(&self.envelope)
         )
     }
@@ -169,6 +169,11 @@ mod tests {
             message
                 .render_summary()
                 .ends_with("\"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX ....\"")
+        );
+        assert!(
+            message
+                .render_summary()
+                .starts_with("Agent engineer -> Agent researcher")
         );
     }
 

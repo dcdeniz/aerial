@@ -126,6 +126,10 @@ fn tool_definitions() -> Value {
                     "in_reply_to": {
                         "type": "string",
                         "description": "Optional parent envelope UUID for lineage tracking."
+                    },
+                    "create": {
+                        "type": "boolean",
+                        "description": "Create the recipient if it has not been registered before."
                     }
                 },
                 "required": ["from", "to", "body"]
@@ -165,6 +169,14 @@ fn tool_definitions() -> Value {
                         "description": "Maximum number of recent messages to return."
                     }
                 }
+            }
+        },
+        {
+            "name": "agents",
+            "description": "List agents known to the daemon with pending counts and last-seen times.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
             }
         },
         {
@@ -265,6 +277,7 @@ fn build_request(name: Option<&str>, args: &Value) -> Result<DaemonRequest, Stri
             to: required_str(args, "to")?,
             body: required_str(args, "body")?,
             in_reply_to: optional_uuid(args, "in_reply_to")?,
+            create: optional_bool(args, "create")?,
         }),
         Some("inbox") => Ok(DaemonRequest::Pending {
             agent: required_str(args, "agent")?,
@@ -276,6 +289,7 @@ fn build_request(name: Option<&str>, args: &Value) -> Result<DaemonRequest, Stri
         Some("history") => Ok(DaemonRequest::History {
             limit: optional_usize(args, "limit")?,
         }),
+        Some("agents") => Ok(DaemonRequest::Agents),
         Some(other) => Err(format!("unknown tool: {other}")),
         None => Err("missing tool name".to_owned()),
     }
@@ -410,6 +424,7 @@ fn exchange(
             to: to.to_owned(),
             body: body.to_owned(),
             in_reply_to,
+            create: false,
         },
     ) {
         Ok(DaemonResponse::Sent { envelope }) => envelope,
@@ -493,6 +508,15 @@ fn optional_usize(args: &Value, key: &str) -> Result<Option<usize>, String> {
     }
 }
 
+fn optional_bool(args: &Value, key: &str) -> Result<bool, String> {
+    match args.get(key) {
+        None | Some(Value::Null) => Ok(false),
+        Some(value) => value
+            .as_bool()
+            .ok_or_else(|| format!("argument {key} must be a boolean")),
+    }
+}
+
 fn result_response(id: Value, result: Value) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "result": result })
 }
@@ -538,7 +562,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "register", "tell", "inbox", "done", "history", "status", "drain", "exchange"
+                "register", "tell", "inbox", "done", "history", "agents", "status", "drain",
+                "exchange"
             ]
         );
     }
@@ -585,6 +610,7 @@ mod tests {
                 to: "claude".to_owned(),
                 body: "hi".to_owned(),
                 in_reply_to: Some(parent),
+                create: false,
             }
         );
     }
@@ -643,7 +669,7 @@ mod tests {
                 .as_array()
                 .expect("tools array")
                 .len(),
-            8
+            9
         );
     }
 
@@ -718,7 +744,7 @@ mod tests {
             &socket,
             2,
             "tell",
-            json!({ "from": "alice", "to": "bob", "body": "hi bob" }),
+            json!({ "from": "alice", "to": "bob", "body": "hi bob", "create": true }),
         );
         assert_eq!(tool_body(&sent)["status"], "sent");
 
@@ -727,6 +753,8 @@ mod tests {
         let envelopes = pending["envelopes"].as_array().expect("envelopes");
         assert_eq!(envelopes.len(), 1);
         assert_eq!(envelopes[0]["payload"]["body"], "hi bob");
+        assert_eq!(envelopes[0]["from_name"], "alice");
+        assert_eq!(envelopes[0]["to_name"], "bob");
         let envelope_id = envelopes[0]["id"].as_str().expect("envelope id").to_owned();
 
         let acked = call_tool(
@@ -748,6 +776,9 @@ mod tests {
 
         let history = call_tool(&socket, 6, "history", json!({ "limit": 10 }));
         assert_eq!(tool_body(&history)["status"], "history");
+
+        let agents = call_tool(&socket, 11, "agents", json!({}));
+        assert_eq!(tool_body(&agents)["status"], "agents");
 
         let exchange = call_tool(
             &socket,

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::UNIX_EPOCH;
 
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -17,7 +18,7 @@ use uuid::Uuid;
 
 use crate::envelope::{AgentId, Envelope, MessageKind};
 use crate::mailbox::{Mailbox, MailboxError};
-use crate::protocol::{DaemonRequest, DaemonResponse, WatchEvent};
+use crate::protocol::{AgentStatus, DaemonRequest, DaemonResponse, WatchEvent};
 use crate::registry::Registry;
 use crate::transcript::{Transcript, TranscriptError, TranscriptMessage};
 
@@ -28,6 +29,18 @@ pub enum DaemonError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error(
+        "cannot connect to the Aerial daemon at {socket}: {source}. Start it with `aerial up --data-dir {data_dir}`"
+    )]
+    Connect {
+        socket: PathBuf,
+        data_dir: PathBuf,
+        source: std::io::Error,
+    },
+    #[error(
+        "unknown recipient `{0}`; register it with `aerial join {0}` or resend with `--create`"
+    )]
+    UnknownRecipient(String),
     #[error("mailbox error: {0}")]
     Mailbox(#[from] MailboxError),
     #[error("transcript error: {0}")]
@@ -74,9 +87,11 @@ impl Daemon {
             source,
         })?;
 
+        let state = restore_state(&data_dir)?;
+
         Ok(Self {
             data_dir,
-            state: Mutex::new(DaemonState::default()),
+            state: Mutex::new(state),
             watchers: Mutex::new(HashMap::new()),
         })
     }
@@ -183,6 +198,7 @@ impl Daemon {
     pub fn handle(&self, request: DaemonRequest) -> Result<DaemonResponse, DaemonError> {
         match request {
             DaemonRequest::Register { name } => {
+                self.mailbox(&name)?;
                 let mut state = self.state.lock().expect("state lock");
                 let registered = state.registry.register(name.clone());
                 state
@@ -198,17 +214,28 @@ impl Daemon {
                 to,
                 body,
                 in_reply_to,
+                create,
             } => {
                 let (from_id, to_id) = {
                     let mut state = self.state.lock().expect("state lock");
-                    (state.agent_id(&from), state.agent_id(&to))
+                    let to_id = match state.registry.resolve(&to) {
+                        Some(agent) => agent.id.clone(),
+                        None if create => {
+                            let registered = state.registry.register(to.clone());
+                            state.known_agents.insert(to.clone(), registered.id.clone());
+                            registered.id
+                        }
+                        None => return Err(DaemonError::UnknownRecipient(to)),
+                    };
+                    (state.agent_id(&from), to_id)
                 };
                 let mut envelope = Envelope::new(
                     from_id,
                     to_id,
                     MessageKind::Message,
                     json!({ "body": body }),
-                );
+                )
+                .with_names(from.clone(), to.clone());
                 envelope.in_reply_to = in_reply_to;
 
                 self.mailbox(&to)?.enqueue(&envelope)?;
@@ -231,6 +258,19 @@ impl Daemon {
             DaemonRequest::History { limit } => {
                 let messages = self.transcript()?.tail(limit)?;
                 Ok(DaemonResponse::History { messages })
+            }
+            DaemonRequest::Agents => {
+                let registered = self.state.lock().expect("state lock").registry.agents();
+                let mut agents = Vec::with_capacity(registered.len());
+                for agent in registered {
+                    agents.push(AgentStatus {
+                        pending: self.mailbox(&agent.name)?.pending()?.len(),
+                        name: agent.name,
+                        id: agent.id,
+                        last_seen: agent.connected_at,
+                    });
+                }
+                Ok(DaemonResponse::Agents { agents })
             }
             DaemonRequest::Watch { .. } => Ok(DaemonResponse::Error {
                 message: "watch is a streaming request; connect and read events".to_owned(),
@@ -267,10 +307,8 @@ impl Daemon {
 }
 
 pub fn request(socket_path: &Path, request: &DaemonRequest) -> Result<DaemonResponse, DaemonError> {
-    let mut stream = UnixStream::connect(socket_path).map_err(|source| DaemonError::Io {
-        path: socket_path.to_path_buf(),
-        source,
-    })?;
+    let mut stream =
+        UnixStream::connect(socket_path).map_err(|source| connect_error(socket_path, source))?;
     serde_json::to_writer(&mut stream, request)?;
     stream.write_all(b"\n").map_err(|source| DaemonError::Io {
         path: socket_path.to_path_buf(),
@@ -300,10 +338,8 @@ pub fn watch_until(
     agent: &str,
     mut on_event: impl FnMut(WatchEvent) -> bool,
 ) -> Result<(), DaemonError> {
-    let mut stream = UnixStream::connect(socket_path).map_err(|source| DaemonError::Io {
-        path: socket_path.to_path_buf(),
-        source,
-    })?;
+    let mut stream =
+        UnixStream::connect(socket_path).map_err(|source| connect_error(socket_path, source))?;
     let request = DaemonRequest::Watch {
         agent: agent.to_owned(),
     };
@@ -331,6 +367,86 @@ pub fn watch_until(
 
 fn mailboxes_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("mailboxes")
+}
+
+fn connect_error(socket_path: &Path, source: std::io::Error) -> DaemonError {
+    DaemonError::Connect {
+        socket: socket_path.to_path_buf(),
+        data_dir: socket_path
+            .parent()
+            .unwrap_or_else(|| Path::new(".aerial"))
+            .to_path_buf(),
+        source,
+    }
+}
+
+fn restore_state(data_dir: &Path) -> Result<DaemonState, DaemonError> {
+    let mut historical: HashMap<String, (AgentId, u64)> = HashMap::new();
+    for message in Transcript::open(data_dir.join("history.jsonl"))?.messages()? {
+        let sent_at = message.envelope.sent_at;
+        restore_agent(
+            &mut historical,
+            message.from_name,
+            message.envelope.from,
+            sent_at,
+        );
+        restore_agent(
+            &mut historical,
+            message.to_name,
+            message.envelope.to,
+            sent_at,
+        );
+    }
+
+    let mut restored = HashMap::new();
+    for entry in fs::read_dir(mailboxes_dir(data_dir)).map_err(|source| DaemonError::Io {
+        path: mailboxes_dir(data_dir),
+        source,
+    })? {
+        let entry = entry.map_err(|source| DaemonError::Io {
+            path: mailboxes_dir(data_dir),
+            source,
+        })?;
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("jsonl") {
+            continue;
+        }
+        let Some(name) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        let last_seen = entry
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .ok()
+            .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+            .and_then(|duration| duration.as_millis().try_into().ok())
+            .unwrap_or(0);
+        let (id, historical_last_seen) = historical
+            .remove(name)
+            .unwrap_or_else(|| (AgentId::new(), 0));
+        restored.insert(name.to_owned(), (id, last_seen.max(historical_last_seen)));
+    }
+
+    let mut state = DaemonState::default();
+    for (name, (id, last_seen)) in restored {
+        state.known_agents.insert(name.clone(), id.clone());
+        state.registry.restore(name, id, last_seen);
+    }
+    Ok(state)
+}
+
+fn restore_agent(
+    restored: &mut HashMap<String, (AgentId, u64)>,
+    name: String,
+    id: AgentId,
+    last_seen: u64,
+) {
+    match restored.get(&name) {
+        Some((_, existing_last_seen)) if *existing_last_seen > last_seen => {}
+        _ => {
+            restored.insert(name, (id, last_seen));
+        }
+    }
 }
 
 fn read_request(stream: &UnixStream) -> Result<DaemonRequest, DaemonError> {
@@ -384,6 +500,7 @@ mod tests {
                 to: "researcher".to_owned(),
                 body: "status?".to_owned(),
                 in_reply_to: None,
+                create: true,
             })
             .expect("send");
 
@@ -391,6 +508,9 @@ mod tests {
             DaemonResponse::Sent { envelope } => envelope,
             other => panic!("unexpected response: {other:?}"),
         };
+
+        assert_eq!(envelope.from_name.as_deref(), Some("engineer"));
+        assert_eq!(envelope.to_name.as_deref(), Some("researcher"));
 
         assert!(matches!(
             daemon
@@ -419,6 +539,99 @@ mod tests {
     }
 
     #[test]
+    fn daemon_rejects_unknown_recipient_without_create() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let daemon = Daemon::new(dir.path()).expect("daemon");
+
+        let error = daemon
+            .handle(DaemonRequest::Send {
+                from: "engineer".to_owned(),
+                to: "ghost".to_owned(),
+                body: "hello?".to_owned(),
+                in_reply_to: None,
+                create: false,
+            })
+            .expect_err("unknown recipient should fail");
+
+        assert!(matches!(error, DaemonError::UnknownRecipient(name) if name == "ghost"));
+    }
+
+    #[test]
+    fn connection_error_includes_startup_remedy() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let socket = dir.path().join("missing.sock");
+        let error = request(&socket, &DaemonRequest::Agents).expect_err("connection should fail");
+        let message = error.to_string();
+
+        assert!(message.contains("cannot connect to the Aerial daemon"));
+        assert!(message.contains("aerial up --data-dir"));
+        assert!(message.contains(&dir.path().display().to_string()));
+    }
+
+    #[test]
+    fn registered_recipient_is_restored_after_restart() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let daemon = Daemon::new(dir.path()).expect("daemon");
+        daemon
+            .handle(DaemonRequest::Register {
+                name: "researcher".to_owned(),
+            })
+            .expect("register");
+        drop(daemon);
+
+        let restarted = Daemon::new(dir.path()).expect("restarted daemon");
+        restarted
+            .handle(DaemonRequest::Send {
+                from: "engineer".to_owned(),
+                to: "researcher".to_owned(),
+                body: "still there?".to_owned(),
+                in_reply_to: None,
+                create: false,
+            })
+            .expect("send to restored recipient");
+
+        let agents = restarted
+            .handle(DaemonRequest::Agents)
+            .expect("list agents");
+        assert!(matches!(
+            agents,
+            DaemonResponse::Agents { ref agents }
+                if agents.len() == 1
+                    && agents[0].name == "researcher"
+                    && agents[0].pending == 1
+        ));
+    }
+
+    #[test]
+    fn history_sender_is_not_restored_as_a_registered_recipient() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let daemon = Daemon::new(dir.path()).expect("daemon");
+        daemon
+            .handle(DaemonRequest::Send {
+                from: "sender-only".to_owned(),
+                to: "researcher".to_owned(),
+                body: "hello".to_owned(),
+                in_reply_to: None,
+                create: true,
+            })
+            .expect("initial send");
+        drop(daemon);
+
+        let restarted = Daemon::new(dir.path()).expect("restarted daemon");
+        let error = restarted
+            .handle(DaemonRequest::Send {
+                from: "engineer".to_owned(),
+                to: "sender-only".to_owned(),
+                body: "should fail".to_owned(),
+                in_reply_to: None,
+                create: false,
+            })
+            .expect_err("sender-only name should not become a recipient");
+
+        assert!(matches!(error, DaemonError::UnknownRecipient(name) if name == "sender-only"));
+    }
+
+    #[test]
     fn daemon_records_send_history() {
         let dir = tempfile::tempdir().expect("tempdir");
         let daemon = Daemon::new(dir.path()).expect("daemon");
@@ -429,6 +642,7 @@ mod tests {
                 to: "researcher".to_owned(),
                 body: "please inspect the docs".to_owned(),
                 in_reply_to: None,
+                create: true,
             })
             .expect("send");
 
@@ -468,6 +682,7 @@ mod tests {
                 to: "researcher".to_owned(),
                 body: "wake up".to_owned(),
                 in_reply_to: None,
+                create: true,
             })
             .expect("send");
         let id = match sent {
@@ -505,6 +720,7 @@ mod tests {
                 to: "researcher".to_owned(),
                 body: "not for you".to_owned(),
                 in_reply_to: None,
+                create: true,
             })
             .expect("send");
 

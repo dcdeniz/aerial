@@ -1,6 +1,6 @@
 {
   "name": "aerial-local",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Peer-to-peer, durable, resumable messaging for AI agents.",
   "license": "MIT",
   "author": "dcdeniz",

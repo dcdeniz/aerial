@@ -35,6 +35,7 @@ fn send(socket: &std::path::Path, from: &str, to: &str, body: &str) -> uuid::Uui
             to: to.to_owned(),
             body: body.to_owned(),
             in_reply_to: None,
+            create: true,
         },
     )
     .expect("send");
